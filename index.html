@@ -43,6 +43,9 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{font-size:16px;overflow-x:hidden}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+/* ── TOAST ── */
+.toast{position:fixed;bottom:calc(var(--safe-bottom) + 90px);left:50%;transform:translateX(-50%) translateY(20px);background:#1a2e5a;border:1px solid var(--accent-border);color:#fff;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:all 0.25s cubic-bezier(0.16,1,0.3,1);pointer-events:none;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.4)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* ── NAV ── */
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:6px 4px calc(var(--safe-bottom) + 2px);display:flex;justify-content:space-around;z-index:100;box-shadow:0 -1px 0 var(--border)}
@@ -454,6 +457,7 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
 </div>
 
 <!-- ══════════════════ NAV ══════════════════ -->
+<div class="toast" id="app-toast"></div>
 <nav>
   <button class="active" onclick="showPage('dashboard')"><span class="ni">⊞</span>Resumen</button>
   <button onclick="showPage('gastos')"><span class="ni">◎</span>Gastos</button>
@@ -525,6 +529,15 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
       </div>
       <span class="badge" id="dash-proyeccion-badge">—</span>
     </div>
+    <div style="margin-top:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--accent);opacity:0.7;margin-bottom:4px;">
+        <span id="dash-proy-label-left">€0 ahorrado</span>
+        <span id="dash-proy-label-right">objetivo €0</span>
+      </div>
+      <div style="height:5px;background:rgba(77,121,255,0.15);border-radius:3px;overflow:hidden;">
+        <div id="dash-proy-fill" style="height:100%;width:0%;border-radius:3px;transition:width 0.4s ease;background:var(--accent);"></div>
+      </div>
+    </div>
   </div>
 
   <div class="grid-2">
@@ -574,7 +587,33 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
   <!-- EXTRA SUGERIDO -->
   <div class="info-box green" id="dash-extra-card" style="display:none;">
     <div style="font-weight:700;margin-bottom:4px;">💡 Aportación extra sugerida: <span id="dash-extra-val">€0</span></div>
-    <div>Has gastado menos de lo presupuestado. Podrías invertir esta diferencia.</div>
+    <div id="dash-extra-sub">Basado en el ahorro acumulado de meses anteriores.</div>
+  </div>
+
+  <!-- INGRESOS EXTRAORDINARIOS -->
+  <div class="card" id="dash-ext-card" style="display:none;">
+    <div class="card-title">🎁 Ingresos extraordinarios del año</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:26px;color:var(--amber);" id="dash-ext-val">€0</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;">No computan en el ahorro mensual</div>
+      </div>
+      <span class="badge amber">Patrimonio extra</span>
+    </div>
+    <div id="dash-ext-lista" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- GASTOS EXTRAORDINARIOS -->
+  <div class="card" id="dash-gext-card" style="display:none;">
+    <div class="card-title">🧳 Gastos extraordinarios del año</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:26px;color:var(--red);" id="dash-gext-val">€0</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;">Descontados del ahorro anual · no del presupuesto mensual</div>
+      </div>
+      <span class="badge red">Gasto extra</span>
+    </div>
+    <div id="dash-gext-lista" style="margin-top:10px;"></div>
   </div>
 
   <!-- RENTABILIDAD REAL -->
@@ -601,17 +640,26 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
   </div>
 
   <!-- CHART -->
-  <div class="sec-title">Ahorro acumulado <span id="dash-chart-year" style="font-family:'Playfair Display',serif;font-size:14px;color:var(--text2);"></span></div>
+  <div class="sec-title">Ahorro acumulado
+    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+      <button onclick="changeChartYear(-1)" style="background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer;padding:0 4px;">‹</button>
+      <span id="dash-chart-year" style="font-family:'Playfair Display',serif;font-size:14px;color:var(--text2);min-width:36px;text-align:center;"></span>
+      <button onclick="changeChartYear(1)" id="btn-chart-year-next" style="background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer;padding:0 4px;">›</button>
+    </div>
+  </div>
   <div class="card" style="padding:14px;">
     <div class="chart-wrap">
       <canvas id="chart-ahorro" height="100"></canvas>
     </div>
   </div>
 
-</div>
-</div>
-
-<!-- ══════════════════ GASTOS ══════════════════ -->
+  <!-- BARRAS GASTO MENSUAL -->
+  <div class="sec-title">Gasto mensual · últimos 6 meses</div>
+  <div class="card" style="padding:14px;">
+    <div class="chart-wrap">
+      <canvas id="chart-barras-gasto" height="120"></canvas>
+    </div>
+  </div>
 <div id="page-gastos" class="page">
 <div class="container">
   <div class="page-header">
@@ -679,6 +727,7 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
     <button class="tab" onclick="switchGTab('inversiones')">📈 Inversiones</button>
     <button class="tab" onclick="switchGTab('fijos')">Periódicos</button>
     <button class="tab" onclick="switchGTab('fiado')">🤝 Fiado</button>
+    <button class="tab" onclick="switchGTab('comparativa')">📊 Comparativa</button>
   </div>
   <div id="gtab-variables">
     <div class="scroll-x" id="cat-pills-filter"></div>
@@ -693,6 +742,9 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
   </div>
   <div id="gtab-inversiones" style="display:none;">
     <div id="lista-inversiones-mes"></div>
+  </div>
+  <div id="gtab-comparativa" style="display:none;">
+    <div id="comparativa-content"></div>
   </div>
 </div>
 <button class="fab" onclick="openModal('modal-nuevo-gasto')">+</button>
@@ -716,13 +768,24 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
       <span style="font-size:11px;color:rgba(255,255,255,0.5);" id="inv-update-time">sin actualizar</span>
     </div>
   </div>
-  <div class="grid-2">
-    <div class="mini-card"><div class="ml">ETF + Fondos</div><div class="mv" id="inv-p-etf">0%</div><div class="ms">objetivo ~62%</div></div>    <div class="mini-card"><div class="ml">Metales</div><div class="mv" id="inv-p-metal">0%</div><div class="ms">objetivo ~20%</div></div>
+  <!-- DONUT CARTERA -->
+  <div class="card" style="padding:16px 14px;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div style="position:relative;flex-shrink:0;width:130px;height:130px;">
+        <canvas id="canvas-donut-cartera" width="130" height="130" style="width:130px;height:130px;"></canvas>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Cartera</div>
+          <div style="font-family:'Playfair Display',serif;font-size:13px;color:var(--text);" id="donut-center-val">—</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:0;" id="donut-legend-cartera"></div>
+    </div>
   </div>
-  <div class="grid-2">
-    <div class="mini-card"><div class="ml">Cripto</div><div class="mv" id="inv-p-cripto">0%</div><div class="ms">máx 12% · alerta 15%</div></div>
-    <div class="mini-card"><div class="ml">Acciones</div><div class="mv" id="inv-p-acc">0%</div><div class="ms">especulat. &lt;5%</div></div>
-  </div>
+  <!-- hidden refs needed by JS -->
+  <span id="inv-p-etf" style="display:none"></span><span id="inv-s-etf" style="display:none"></span>
+  <span id="inv-p-metal" style="display:none"></span><span id="inv-s-metal" style="display:none"></span>
+  <span id="inv-p-cripto" style="display:none"></span><span id="inv-s-cripto" style="display:none"></span>
+  <span id="inv-p-acc" style="display:none"></span><span id="inv-s-acc" style="display:none"></span>
   <div class="sec-title">Aportaciones activas</div>
   <div class="card" style="padding:8px 14px;" id="lista-aportaciones"></div>
   <div class="tabs" style="margin-top:16px;">
@@ -923,7 +986,7 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
       <div class="setting-right"><span class="setting-val" id="cfg-obj">€0</span><button class="btn btn-icon" onclick="editCfg('obj_ahorro','Objetivo ahorro anual (€)')">✎</button></div>
     </div>
     <div class="setting-row">
-      <div class="setting-left"><div class="sl">Presupuesto mensual</div><div class="ss">Total gastos variables del mes</div></div>
+      <div class="setting-left"><div class="sl">Presupuesto mensual</div><div class="ss">Solo variables · fijos aparte: <span id="cfg-fijos-ref">€0</span>/mes</div></div>
       <div class="setting-right"><span class="setting-val" id="cfg-pres">€0</span><button class="btn btn-icon" onclick="editCfg('presupuesto_mensual','Presupuesto mensual total (€)')">✎</button></div>
     </div>
     <div class="setting-row">
@@ -937,6 +1000,39 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
     <div class="setting-row">
       <div class="setting-left"><div class="sl">Tipo de cambio USD/EUR</div><div class="ss">Auto vía API · activos en dólares</div></div>
       <div class="setting-right"><span class="setting-val" id="cfg-fx">—</span><button class="btn btn-icon" onclick="editCfg('usd_eur','Tipo de cambio USD/EUR')">✎</button></div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-left"><div class="sl">% Aportación extra sugerida</div><div class="ss">Del ahorro acumulado de meses anteriores</div></div>
+      <div class="setting-right"><span class="setting-val" id="cfg-pct-extra">20%</span><button class="btn btn-icon" onclick="editCfgPct('pct_extra_sugerido','% de ahorro acumulado a sugerir como aportación extra',1,100)">✎</button></div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-left"><div class="sl">% Tasa ahorro objetivo</div><div class="ss">Badge verde si superas este % de la nómina</div></div>
+      <div class="setting-right"><span class="setting-val" id="cfg-tasa-obj">20%</span><button class="btn btn-icon" onclick="editCfgPct('tasa_ahorro_obj','Tasa de ahorro objetivo (%)',1,100)">✎</button></div>
+    </div>
+  </div>
+
+  <div class="sec-title">Objetivos de inversión</div>
+  <div class="card">
+    <div style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.5;">Los porcentajes deben sumar 100%. Se usan para el rebalanceo, alertas y badges de cartera.</div>
+    <div class="setting-row">
+      <div class="setting-left"><div class="sl">ETF + Fondos</div><div class="ss">Núcleo de la cartera</div></div>
+      <div class="setting-right"><span class="setting-val" id="cfg-obj-etf">62%</span><button class="btn btn-icon" onclick="editCfgPct('obj_etf','Objetivo ETF + Fondos (%)',0,100)">✎</button></div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-left"><div class="sl">Metales</div><div class="ss">Oro, plata, etc.</div></div>
+      <div class="setting-right"><span class="setting-val" id="cfg-obj-metal">20%</span><button class="btn btn-icon" onclick="editCfgPct('obj_metal','Objetivo Metales (%)',0,100)">✎</button></div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-left"><div class="sl">Cripto</div><div class="ss">Máximo recomendado</div></div>
+      <div class="setting-right"><span class="setting-val" id="cfg-obj-cripto">15%</span><button class="btn btn-icon" onclick="editCfgPct('obj_cripto','Objetivo Cripto (%)',0,100)">✎</button></div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-left"><div class="sl">Acciones</div><div class="ss">Posiciones especulativas</div></div>
+      <div class="setting-right"><span class="setting-val" id="cfg-obj-acc">3%</span><button class="btn btn-icon" onclick="editCfgPct('obj_acc','Objetivo Acciones (%)',0,100)">✎</button></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--border);margin-top:4px;">
+      <span style="font-size:12px;color:var(--text2);">Total asignado</span>
+      <span style="font-size:14px;font-weight:600;" id="cfg-obj-total">100%</span>
     </div>
   </div>
 
@@ -990,9 +1086,12 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
   <div class="modal-title" id="modal-mov-title">Añadir movimiento</div>
 
   <!-- SELECTOR DE TIPO -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:18px;">
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:18px;">
     <button class="mov-type-btn active" id="movbtn-gasto" onclick="setMovTipo('gasto')">
       <span style="font-size:20px;">💸</span><span>Gasto</span>
+    </button>
+    <button class="mov-type-btn" id="movbtn-gasto_extra" onclick="setMovTipo('gasto_extra')">
+      <span style="font-size:20px;">🧳</span><span>Extraord.</span>
     </button>
     <button class="mov-type-btn" id="movbtn-traspaso" onclick="setMovTipo('traspaso')">
       <span style="font-size:20px;">🔄</span><span>Traspaso</span>
@@ -1034,6 +1133,25 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
     </div>
   </div>
 
+  <!-- ── PANEL GASTO EXTRAORDINARIO ── -->
+  <div id="panel-gasto_extra" style="display:none;">
+    <div class="info-box amber" style="margin-bottom:14px;">🧳 Gasto extraordinario: <strong>no afecta al presupuesto mensual</strong> pero sí descuenta del ahorro acumulado del año. Úsalo para vacaciones, averías grandes, obras, etc.</div>
+    <div class="form-group">
+      <label class="form-label">Concepto</label>
+      <input class="form-input" type="text" id="g-ext-concepto" placeholder="Ej: Vacaciones verano, avería coche...">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Importe (€)</label>
+        <input class="form-input" type="text" id="g-ext-importe" placeholder="0,00" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha</label>
+        <input class="form-input" type="date" id="g-ext-fecha">
+      </div>
+    </div>
+  </div>
+
   <!-- ── PANEL TRASPASO ── -->
   <div id="panel-traspaso" style="display:none;">
     <div class="form-group">
@@ -1062,7 +1180,7 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
   <div id="panel-ingreso" style="display:none;">
     <div class="form-group">
       <label class="form-label">Tipo de ingreso</label>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:4px;">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:4px;">
         <button class="mov-type-btn active" id="ingbtn-intereses" onclick="setIngresoTipo('intereses')">
           <span style="font-size:18px;">🏦</span><span>Intereses</span>
         </button>
@@ -1071,6 +1189,9 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
         </button>
         <button class="mov-type-btn" id="ingbtn-otros" onclick="setIngresoTipo('otros')">
           <span style="font-size:18px;">💵</span><span>Otros</span>
+        </button>
+        <button class="mov-type-btn" id="ingbtn-extraordinario" onclick="setIngresoTipo('extraordinario')">
+          <span style="font-size:18px;">🎁</span><span>Extraord.</span>
         </button>
       </div>
     </div>
@@ -1090,6 +1211,14 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
       <div class="form-group">
         <label class="form-label">Concepto</label>
         <input class="form-input" type="text" id="g-ing-concepto" placeholder="Ej: Devolución Hacienda, venta...">
+      </div>
+    </div>
+    <!-- Extraordinario -->
+    <div id="ing-extraordinario-section" style="display:none;">
+      <div class="info-box amber" style="margin-bottom:12px;">🎁 Ingreso extraordinario: <strong>no altera el ahorro mensual</strong>. Se muestra como patrimonio separado en el dashboard. Úsalo para devoluciones de Hacienda, herencias, ventas puntuales, etc.</div>
+      <div class="form-group">
+        <label class="form-label">Concepto</label>
+        <input class="form-input" type="text" id="g-ing-ext-concepto" placeholder="Ej: Devolución renta 2024, venta coche...">
       </div>
     </div>
     <div class="form-row">
@@ -1431,7 +1560,6 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
   <div class="modal-handle"></div>
   <div class="modal-title">Actualizar nómina</div>
   <div class="form-row">
-    <div class="form-group"><label class="form-label">Importe neto (€)</label><input class="form-input" type="text" id="nom-importe" placeholder="1.890,00" inputmode="decimal"></div>
     <div class="form-group"><label class="form-label">Mes</label>
       <select class="form-input" id="nom-mes">
         <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
@@ -1440,10 +1568,35 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
         <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
       </select>
     </div>
+    <div class="form-group"><label class="form-label">Año</label><input class="form-input" type="number" id="nom-año" placeholder="2026"></div>
   </div>
-  <div class="form-group"><label class="form-label">Año</label><input class="form-input" type="number" id="nom-año" placeholder="2026"></div>
-  <div class="form-group"><label class="form-label">Notas</label><input class="form-input" type="text" id="nom-notas" placeholder="Ej: Subida IPC, cambio retención..."></div>
+  <div class="form-group"><label class="form-label">Importe total recibido (€)</label><input class="form-input" type="text" id="nom-importe" placeholder="2.390,00" inputmode="decimal" oninput="onNomImporteChange()"></div>
+
+  <!-- Toggle paga extra integrada -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:14px;">
+    <div>
+      <div style="font-size:13px;font-weight:500;color:var(--text);">¿Incluye paga extra?</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px;">El importe extra irá al ahorro, sin contar como ingreso mensual</div>
+    </div>
+    <button class="toggle" id="nom-tiene-extra-toggle" onclick="toggleNomExtra()"></button>
+  </div>
+
+  <!-- Sección extra (oculta por defecto) -->
+  <div id="nom-extra-section" style="display:none;">
+    <div class="form-group">
+      <label class="form-label">Sueldo mensual habitual (€)</label>
+      <input class="form-input" type="text" id="nom-importe-regular" placeholder="1.890,00" inputmode="decimal" oninput="onNomRegularChange()">
+      <div class="form-hint">Solo este importe se usa para calcular cuánto ahorras cada mes.</div>
+    </div>
+    <div style="background:var(--accent-light);border:1px solid var(--accent-border);border-radius:var(--r-xs);padding:10px 12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:12px;color:var(--text2);">Extra de nómina (va a ahorro)</span>
+      <span style="font-family:'Playfair Display',serif;font-size:18px;color:var(--accent);" id="nom-extra-preview">€0</span>
+    </div>
+  </div>
+
+  <div class="form-group"><label class="form-label">Notas</label><input class="form-input" type="text" id="nom-notas" placeholder="Ej: Paga de julio, subida IPC..."></div>
   <input type="hidden" id="nom-edit-id">
+  <input type="hidden" id="nom-tiene-extra" value="0">
   <div class="modal-actions">
     <button class="btn btn-ghost" onclick="closeModal('modal-nomina')">Cancelar</button>
     <button class="btn btn-primary" onclick="guardarNomina()">Guardar</button>
@@ -1518,6 +1671,20 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
 
 <input type="file" id="file-import" accept=".json" style="display:none" onchange="cargarBackup(event)">
 
+<!-- MODAL CONFIRM -->
+<div class="modal-overlay" id="modal-confirm">
+<div class="modal" style="max-width:320px;">
+  <div class="modal-handle"></div>
+  <div style="font-size:18px;margin-bottom:8px;" id="confirm-icon">🗑️</div>
+  <div style="font-weight:700;font-size:15px;margin-bottom:6px;color:var(--text);" id="confirm-title">¿Eliminar?</div>
+  <div style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.5;" id="confirm-msg">Esta acción no se puede deshacer.</div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closeModal('modal-confirm')">Cancelar</button>
+    <button class="btn" style="background:var(--red);color:#fff;border-color:var(--red);" id="confirm-ok-btn" onclick="_confirmCallback&&_confirmCallback()">Eliminar</button>
+  </div>
+</div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════
 // CONSTANTS & DATA
@@ -1544,11 +1711,13 @@ const IRPF_TRAMOS = [
   {hasta:Infinity,tipo:0.27,label:'Más de €200.000'}
 ];
 
-let db, curMonth, curYear, curPage, curCat, curInvTab, curTipo, irpfCompensar;
+let db, curMonth, curYear, curPage, curCat, curInvTab, curTipo, irpfCompensar, curChartYear;
 
 function defaultDb() {
   return {
-    config:{obj_ahorro:10500,presupuesto_mensual:1000,presupuesto_gasolina:260,usd_eur:0.92,ipc:3.0,nombre:''},
+    config:{obj_ahorro:10500,presupuesto_mensual:1000,presupuesto_gasolina:260,usd_eur:0.92,ipc:3.0,nombre:'',
+      fiscal:{retencion:15,otros_ingresos:0,cuotas:0,pension:0,donativos:0,dias:220}
+    },
     cuentas:[],fijos:[],anuales:[],activos:[],vendidos:[],
     nominas:[],pagas_extra:[],gastos:[],precios_ts:null,onboarding_done:false,
     categorias_extra:[],pagos_fiado:[],confirmaciones_inversion:[],pagos_intereses:[],inversiones_puntuales:[]
@@ -1557,6 +1726,24 @@ function defaultDb() {
 function load(){try{const r=localStorage.getItem(KEY);if(!r)return defaultDb();const imp=JSON.parse(r);const base=defaultDb();return Object.assign(base,imp,{pagos_fiado:imp.pagos_fiado||[],confirmaciones_inversion:imp.confirmaciones_inversion||[],pagos_intereses:imp.pagos_intereses||[],inversiones_puntuales:imp.inversiones_puntuales||[],categorias_extra:imp.categorias_extra||[]});}catch(e){return defaultDb();}}
 function save(){localStorage.setItem(KEY,JSON.stringify(db));}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
+let _toastTimer;
+function showToast(msg='✓ Guardado'){
+  const t=document.getElementById('app-toast');
+  if(!t)return;
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>t.classList.remove('show'),2000);
+}
+let _confirmCallback=null;
+function showConfirm(opts){
+  document.getElementById('confirm-title').textContent=opts.title||'¿Eliminar?';
+  document.getElementById('confirm-msg').textContent=opts.msg||'Esta acción no se puede deshacer.';
+  document.getElementById('confirm-icon').textContent=opts.icon||'🗑️';
+  const btn=document.getElementById('confirm-ok-btn');
+  btn.textContent=opts.label||'Eliminar';
+  _confirmCallback=()=>{closeModal('modal-confirm');opts.onOk&&opts.onOk();};
+  openModal('modal-confirm');
+}
 
 // ═══════════════════════════════════════════════════
 // INIT
@@ -1564,12 +1751,21 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 window.addEventListener('load',()=>{
   db=load();
   const now=new Date();
-  curMonth=now.getMonth(); curYear=now.getFullYear();
+  curMonth=now.getMonth(); curYear=now.getFullYear(); curChartYear=now.getFullYear();
   curPage='dashboard'; curCat='all'; curInvTab='todos';
   curTipo='gasto'; irpfCompensar=false;
   document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
   if(!db.onboarding_done){showOnboarding();}
   else{renderPage('dashboard');}
+});
+
+let _resizeTimer;
+window.addEventListener('resize',()=>{
+  clearTimeout(_resizeTimer);
+  _resizeTimer=setTimeout(()=>{
+    if(curPage==='dashboard'){renderChartAhorro();renderBarrasGasto();}
+    if(curPage==='cartera'){renderCartera();}
+  },150);
 });
 
 // ═══════════════════════════════════════════════════
@@ -1657,11 +1853,11 @@ function obSetInvierte(v){
 }
 
 function obAddCuenta(){
-  const n=prompt('Nombre de la cuenta (Ej: Trade Republic):');if(!n)return;
-  const s=parseFloat(prompt('Saldo actual (€):')||'0');
-  const t=parseFloat(prompt('TAE (%) — pon 0 si no tiene:')||'0');
-  const emoji=prompt('Emoji (Ej: 🏦):')||'🏦';
-  obTempCuentas.push({id:uid(),nombre:n,emoji,saldo:s,tae:t,fecha_interes:''});
+  const nombre=prompt('Nombre de la cuenta (Ej: Trade Republic):');if(!nombre)return;
+  const saldo=parseFloat(prompt('Saldo actual (€):')||'0');
+  const tae=parseFloat(prompt('TAE (%) — pon 0 si no tiene:')||'0');
+  const emoji=prompt('Emoji:')||'🏦';
+  obTempCuentas.push({id:uid(),nombre,emoji,saldo,tae,fecha_interes:''});
   renderObLista('ob-cuentas-lista',obTempCuentas,c=>`${c.emoji} ${c.nombre} · ${fmt(c.saldo)} · ${c.tae}%`);
 }
 function obAddActivo(){
@@ -1716,12 +1912,16 @@ function showPage(p){
   curPage=p; renderPage(p);
 }
 function renderPage(p){
-  if(p==='dashboard')renderDash();
-  else if(p==='gastos')renderGastos();
-  else if(p==='cartera')renderCartera();
-  else if(p==='cuentas')renderCuentas();
-  else if(p==='fiscal')renderFiscal();
-  else if(p==='config')renderConfig();
+  curPage=p;
+  refreshCurrentPage();
+}
+function refreshCurrentPage(){
+  if(curPage==='dashboard')renderDash();
+  else if(curPage==='gastos')renderGastos();
+  else if(curPage==='cartera')renderCartera();
+  else if(curPage==='cuentas')renderCuentas();
+  else if(curPage==='fiscal')renderFiscal();
+  else if(curPage==='config')renderConfig();
 }
 
 // ═══════════════════════════════════════════════════
@@ -1780,8 +1980,15 @@ function inversionNetoMes(m,y){
 
 function nominaActual(m,y){
   const sorted=[...db.nominas].sort((a,b)=>(b.año*12+b.mes)-(a.año*12+a.mes));
-  const found=sorted.find(n=>n.año<y||(n.año===y&&n.mes<=m+1));
-  return found?parseFloat(found.importe):0;
+  // Nómina registrada para ese mes exacto
+  const exact=db.nominas.find(n=>n.mes===m+1&&n.año===y);
+  if(exact){
+    // Si ese mes tiene paga extra integrada, usar solo la parte habitual
+    return parseFloat(exact.importe_regular||exact.importe);
+  }
+  // Si no hay nómina ese mes, usar la más reciente anterior (sin propagar importe_regular)
+  const prev=sorted.find(n=>n.año<y||(n.año===y&&n.mes<m+1));
+  return prev?parseFloat(prev.importe_regular||prev.importe):0;
 }
 
 function gastoNetoMes(m,y){
@@ -1815,11 +2022,12 @@ function checkAlertas(){
   if(tv>0){
     const pw={ETF:0,Fondo:0,Metal:0,Cripto:0,Acciones:0};
     db.activos.forEach(a=>{const v=parseFloat(a.unidades||0)*parseFloat(a.precio_actual||0);pw[a.categoria]=(pw[a.categoria]||0)+v;});
+    const oi=getObjInversion();const tol=3;
     const cripto=(pw.Cripto/tv)*100;
     const metal=(pw.Metal/tv)*100;
-    if(cripto>18)alerts.push({tipo:'red',msg:`🚨 Cripto supera el 18% de la cartera (${cripto.toFixed(1)}%). Considera rebalancear.`});
-    else if(cripto>12)alerts.push({tipo:'amber',msg:`⚠️ Cripto cerca del límite: ${cripto.toFixed(1)}% (máx 12%).`});
-    if(metal<15)alerts.push({tipo:'amber',msg:`⚠️ Metales por debajo del objetivo: ${metal.toFixed(1)}% (objetivo ~20%).`});
+    if(cripto>oi.cripto+tol)alerts.push({tipo:'red',msg:`🚨 Cripto supera el objetivo (${cripto.toFixed(1)}% vs ${oi.cripto}%). Considera rebalancear.`});
+    else if(cripto>oi.cripto)alerts.push({tipo:'amber',msg:`⚠️ Cripto cerca del límite: ${cripto.toFixed(1)}% (objetivo ${oi.cripto}%).`});
+    if(metal<oi.metal-tol)alerts.push({tipo:'amber',msg:`⚠️ Metales por debajo del objetivo: ${metal.toFixed(1)}% (objetivo ${oi.metal}%).`});
   }
   db.activos.forEach(a=>{
     if(a.precio_objetivo>0&&parseFloat(a.precio_actual||0)>=parseFloat(a.precio_objetivo)*0.92){
@@ -1832,6 +2040,15 @@ function checkAlertas(){
     const totalFiado=fiadosPendientes.reduce((s,g)=>s+g.deuda,0);
     const personas=fiadosPendientes.map(g=>g.persona).join(', ');
     alerts.push({tipo:'amber',msg:`🤝 Tienes ${fmt(totalFiado)} pendientes de cobro · ${personas}`});
+  }
+
+  // Alerta backup
+  const lastBackupTs=localStorage.getItem('matthai_backup_ts');
+  if(!lastBackupTs){
+    alerts.push({tipo:'amber',msg:'💾 Nunca has exportado un backup. Ve a ⚙ Config para hacerlo.'});
+  } else {
+    const diasSinBackup=Math.floor((Date.now()-new Date(lastBackupTs).getTime())/(1000*60*60*24));
+    if(diasSinBackup>30)alerts.push({tipo:'amber',msg:`💾 Hace ${diasSinBackup} días sin backup. Exporta en ⚙ Config.`});
   }
 
   const banner=document.getElementById('dash-alertas-banner');
@@ -1848,7 +2065,7 @@ function renderDash(){
   const nombre=db.config.nombre;
   document.getElementById('dash-greeting').textContent=nombre?`${saludo}, ${nombre}`:saludo;
   document.getElementById('dash-fecha').textContent=MESES[now.getMonth()]+' '+now.getFullYear();
-  document.getElementById('dash-chart-year').textContent=curYear;
+  curChartYear=curChartYear||new Date().getFullYear();
 
   checkAlertas();
 
@@ -1871,12 +2088,17 @@ function renderDash(){
   document.getElementById('dash-tasa').textContent=Math.round(tasa*100)+'%';
   const badge=document.getElementById('dash-tasa-badge');
   const t=Math.round(tasa*100);
+  const tasaObj=db.config.tasa_ahorro_obj||20;
   badge.textContent=t+'% ahorro';
-  badge.className='badge '+(t>=20?'green':t>=10?'accent':'red');
+  badge.className='badge '+(t>=tasaObj?'green':t>=(tasaObj/2)?'accent':'red');
 
   // Ahorro acumulado y objetivo anual
   let ahorroAcum=0;
   for(let mm=0;mm<=m;mm++){ahorroAcum+=nominaActual(mm,y)-gastoNetoMes(mm,y);}
+  // Descontar gastos extraordinarios del año (no computan en gastoNetoMes pero sí salen del bolsillo)
+  const gastosExtraAnio=db.gastos.filter(g=>{const d=new Date(g.fecha);return d.getFullYear()===y&&g.tipo==='gasto_extra'&&d.getMonth()<=m;});
+  const totalGastoExtra=gastosExtraAnio.reduce((s,g)=>s+parseFloat(g.importe||0),0);
+  ahorroAcum=ahorroAcum-totalGastoExtra;
   const obj=db.config.obj_ahorro||10500;
   const objPct=Math.min(100,Math.max(0,ahorroAcum/obj*100));
   document.getElementById('dash-obj-pct').textContent=Math.round(objPct)+'%';
@@ -1894,6 +2116,12 @@ function renderDash(){
   projBadge.textContent=difObj>=0?`+${fmt(difObj)} sobre objetivo`:`${fmt(Math.abs(difObj))} bajo objetivo`;
   projBadge.className='badge '+(difObj>=0?'green':'red');
   document.getElementById('dash-proyeccion-sub').textContent=`estimado a diciembre · media ${fmt(mediaAhorro)}/mes`;
+  // Barra de progreso proyección
+  const proyPct=Math.min(100,Math.max(0,(proyeccion/obj)*100));
+  document.getElementById('dash-proy-fill').style.width=proyPct+'%';
+  document.getElementById('dash-proy-fill').style.background=difObj>=0?'#059669':'#dc2626';
+  document.getElementById('dash-proy-label-left').textContent=fmt(ahorroAcum)+' ahorrado';
+  document.getElementById('dash-proy-label-right').textContent='objetivo '+fmt(obj);
 
   // Gastado y diferencia
   const pres=db.config.presupuesto_mensual||0;
@@ -1915,10 +2143,68 @@ function renderDash(){
   const aport=db.activos.filter(a=>parseFloat(a.aportacion||0)>0).reduce((s,a)=>s+parseFloat(a.aportacion||0),0);
   document.getElementById('dash-aport').textContent=fmt(aport)+'/mes';
 
-  // Extra sugerido
+  // Extra sugerido — basado en ahorro acumulado de meses ANTERIORES al actual
   const extraCard=document.getElementById('dash-extra-card');
-  if(dif>0){extraCard.style.display='block';document.getElementById('dash-extra-val').textContent=fmt(dif);}
-  else extraCard.style.display='none';
+  const ahorroAnteriores=ahorroAcum-ahorro; // quitar el mes en curso
+  const pctExtra=parseFloat(db.config.pct_extra_sugerido||20)/100;
+  const extraSugerido=ahorroAnteriores>0?ahorroAnteriores*pctExtra:0;
+  if(extraSugerido>0){
+    extraCard.style.display='block';
+    document.getElementById('dash-extra-val').textContent=fmt(extraSugerido);
+    document.getElementById('dash-extra-sub').textContent=`${Math.round(pctExtra*100)}% del ahorro acumulado en meses anteriores (${fmt(ahorroAnteriores)}).`;
+  } else {
+    extraCard.style.display='none';
+  }
+
+  // Ingresos extraordinarios del año (ingreso_extra + extras de nómina)
+  const extCard=document.getElementById('dash-ext-card');
+  const extrasAnio=db.gastos.filter(g=>{
+    const d=new Date(g.fecha);return d.getFullYear()===y&&g.tipo==='ingreso_extra';
+  });
+  // Extras de nómina del año
+  const nominasConExtra=db.nominas.filter(n=>n.año===y&&n.extra_nomina>0);
+  const totalExtraGastos=extrasAnio.reduce((s,g)=>s+parseFloat(g.importe||0),0);
+  const totalExtraNomina=nominasConExtra.reduce((s,n)=>s+parseFloat(n.extra_nomina||0),0);
+  const totalExtra=totalExtraGastos+totalExtraNomina;
+  if(totalExtra>0){
+    extCard.style.display='block';
+    document.getElementById('dash-ext-val').textContent=fmt(totalExtra);
+    const listaEl=document.getElementById('dash-ext-lista');
+    const rowsGastos=extrasAnio.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map(g=>{
+      const d=new Date(g.fecha);
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px solid var(--border);font-size:12px;">
+        <span style="color:var(--text2);">🎁 ${g.concepto} · ${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}</span>
+        <span style="color:var(--amber);font-weight:600;">+${fmt(g.importe)}</span>
+      </div>`;
+    });
+    const rowsNomina=nominasConExtra.sort((a,b)=>(b.año*12+b.mes)-(a.año*12+a.mes)).map(n=>{
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px solid var(--border);font-size:12px;">
+        <span style="color:var(--text2);">💼 Paga extra nómina · ${MESES[n.mes-1]} ${n.año}</span>
+        <span style="color:var(--amber);font-weight:600;">+${fmt(n.extra_nomina)}</span>
+      </div>`;
+    });
+    listaEl.innerHTML=[...rowsNomina,...rowsGastos].join('');
+  } else {
+    extCard.style.display='none';
+  }
+
+  // Gastos extraordinarios del año
+  const gextCard=document.getElementById('dash-gext-card');
+  const gastosExtraRender=db.gastos.filter(g=>{const d=new Date(g.fecha);return d.getFullYear()===y&&g.tipo==='gasto_extra';});
+  if(gastosExtraRender.length>0){
+    gextCard.style.display='block';
+    document.getElementById('dash-gext-val').textContent=fmt(totalGastoExtra);
+    document.getElementById('dash-gext-lista').innerHTML=gastosExtraRender
+      .sort((a,b)=>new Date(b.fecha)-new Date(a.fecha))
+      .map(g=>{const d=new Date(g.fecha);
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px solid var(--border);font-size:12px;">
+          <span style="color:var(--text2);">🧳 ${g.concepto} · ${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}</span>
+          <span style="color:var(--red);font-weight:600;">-${fmt(g.importe)}</span>
+        </div>`;
+      }).join('');
+  } else {
+    gextCard.style.display='none';
+  }
 
   // Gasolina — gasto bruto (lo que metes al coche) vs neto (tras reembolsos)
   const gasGastos=gastosMes(m,y).filter(g=>g.categoria==='⛽ Gasolina');
@@ -1964,6 +2250,7 @@ function renderDash(){
   // Pesos cartera
   renderAlertasCartera();
   renderChartAhorro();
+  renderBarrasGasto();
 }
 
 function renderAlertasCartera(){
@@ -1973,11 +2260,22 @@ function renderAlertasCartera(){
   const pw={ETF:0,Fondo:0,Metal:0,Cripto:0,Acciones:0};
   db.activos.forEach(a=>{const v=parseFloat(a.unidades||0)*parseFloat(a.precio_actual||0);pw[a.categoria]=(pw[a.categoria]||0)+v;});
   const core=(pw.ETF+pw.Fondo)/tv*100,metal=pw.Metal/tv*100,cripto=pw.Cripto/tv*100,acc=pw.Acciones/tv*100;
+  const oi=getObjInversion();const tol=3;
   el.innerHTML=`
-    <span class="badge ${core>=59&&core<=65?'green':core<59?'red':'amber'}">ETF+Fondos ${core.toFixed(1)}% ${core<59?'↓':core>65?'↑':'✓'}</span>
-    <span class="badge ${metal>=17&&metal<=23?'green':metal<17?'red':'amber'}">Metales ${metal.toFixed(1)}% ${metal<17?'⚠️':'✓'}</span>
-    <span class="badge ${cripto>=12&&cripto<=18?'green':cripto>18?'red':'amber'}">Cripto ${cripto.toFixed(1)}% ${cripto>18?'↑':cripto<12?'↓':'✓'}</span>
-    <span class="badge ${acc>=0&&acc<=6?'green':acc>6?'red':'amber'}">Acciones ${acc.toFixed(1)}% ${acc>6?'⚠️':'✓'}</span>`;
+    <span class="badge ${Math.abs(core-oi.etf)<=tol?'green':Math.abs(core-oi.etf)<=tol*2?'accent':'red'}">ETF+Fondos ${core.toFixed(1)}% ${core<oi.etf-tol?'↓':core>oi.etf+tol?'↑':'✓'}</span>
+    <span class="badge ${Math.abs(metal-oi.metal)<=tol?'green':metal<oi.metal-tol?'red':'amber'}">Metales ${metal.toFixed(1)}% ${metal<oi.metal-tol?'⚠️':'✓'}</span>
+    <span class="badge ${cripto<=oi.cripto?'green':cripto<=oi.cripto+tol?'amber':'red'}">Cripto ${cripto.toFixed(1)}% ${cripto>oi.cripto+tol?'↑':cripto<oi.cripto-tol?'↓':'✓'}</span>
+    <span class="badge ${acc<=oi.acc+tol?'green':'red'}">Acciones ${acc.toFixed(1)}% ${acc>oi.acc+tol?'⚠️':'✓'}</span>`;
+}
+
+function changeChartYear(d){
+  const now=new Date();
+  const minYear=2020;
+  const newYear=curChartYear+d;
+  if(newYear<minYear||newYear>now.getFullYear())return;
+  curChartYear=newYear;
+  document.getElementById('btn-chart-year-next').style.opacity=curChartYear>=now.getFullYear()?'0.3':'1';
+  renderChartAhorro();
 }
 
 function renderChartAhorro(){
@@ -1985,10 +2283,18 @@ function renderChartAhorro(){
   if(!canvas)return;
   const ctx=canvas.getContext('2d');
   const now=new Date();
-  const maxM=curYear===now.getFullYear()?now.getMonth():11;
+  const maxM=curChartYear===now.getFullYear()?now.getMonth():11;
+  document.getElementById('dash-chart-year').textContent=curChartYear;
+  document.getElementById('btn-chart-year-next').style.opacity=curChartYear>=now.getFullYear()?'0.3':'1';
   const labels=MESES.slice(0,maxM+1).map(x=>x.slice(0,3));
   let acum=0;const datos=[];
-  for(let m=0;m<=maxM;m++){acum+=nominaActual(m,curYear)-gastoNetoMes(m,curYear);datos.push(Math.round(acum));}
+  for(let m=0;m<=maxM;m++){
+    acum+=nominaActual(m,curChartYear)-gastoNetoMes(m,curChartYear);
+    // Descontar gastos extra del mes
+    const gextraMes=db.gastos.filter(g=>{const dd=new Date(g.fecha);return dd.getFullYear()===curChartYear&&dd.getMonth()===m&&g.tipo==='gasto_extra';});
+    acum-=gextraMes.reduce((s,g)=>s+parseFloat(g.importe||0),0);
+    datos.push(Math.round(acum));
+  }
 
   // Get actual pixel width
   const containerW=canvas.parentElement.clientWidth||320;
@@ -2032,28 +2338,37 @@ function renderChartAhorro(){
     ctx.beginPath();ctx.moveTo(pad.l,yZero);ctx.lineTo(W-pad.r,yZero);ctx.stroke();
   }
 
-  // Área
+  // Área bajo la línea — degradado según último valor
   const lastVal=datos[datos.length-1];
   const grad=ctx.createLinearGradient(0,pad.t,0,H);
-  if(lastVal>=0){grad.addColorStop(0,'rgba(5,150,105,0.2)');grad.addColorStop(1,'rgba(5,150,105,0)');}
-  else{grad.addColorStop(0,'rgba(220,38,38,0.15)');grad.addColorStop(1,'rgba(220,38,38,0)');}
+  if(lastVal>=0){grad.addColorStop(0,'rgba(5,150,105,0.18)');grad.addColorStop(1,'rgba(5,150,105,0)');}
+  else{grad.addColorStop(0,'rgba(220,38,38,0.12)');grad.addColorStop(1,'rgba(220,38,38,0)');}
   ctx.beginPath();
   datos.forEach((v,i)=>{const x=pad.l+i*xStep,y=pad.t+h-((v-min)/range)*h;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
   ctx.lineTo(pad.l+(datos.length-1)*xStep,H-pad.b);ctx.lineTo(pad.l,H-pad.b);ctx.closePath();
   ctx.fillStyle=grad;ctx.fill();
 
-  // Línea
-  ctx.beginPath();
-  ctx.strokeStyle=lastVal>=0?'#059669':'#dc2626';
-  ctx.lineWidth=2;ctx.lineJoin='round';
-  datos.forEach((v,i)=>{const x=pad.l+i*xStep,y=pad.t+h-((v-min)/range)*h;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
-  ctx.stroke();
+  // Línea — cada segmento colorea según si sube o baja
+  if(datos.length===1){
+    ctx.beginPath();ctx.arc(pad.l,pad.t+h-((datos[0]-min)/range)*h,3,0,Math.PI*2);
+    ctx.fillStyle=datos[0]>=0?'#059669':'#dc2626';ctx.fill();
+  } else {
+    for(let i=1;i<datos.length;i++){
+      const x0=pad.l+(i-1)*xStep, y0=pad.t+h-((datos[i-1]-min)/range)*h;
+      const x1=pad.l+i*xStep,     y1=pad.t+h-((datos[i]-min)/range)*h;
+      const sube=datos[i]>=datos[i-1];
+      ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);
+      ctx.strokeStyle=sube?'#059669':'#dc2626';
+      ctx.lineWidth=2;ctx.lineJoin='round';ctx.stroke();
+    }
+  }
 
   // Puntos en cada mes
   datos.forEach((v,i)=>{
     const x=pad.l+i*xStep,y=pad.t+h-((v-min)/range)*h;
+    const sube=i===0||v>=datos[i-1];
     ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);
-    ctx.fillStyle=v>=0?'#059669':'#dc2626';ctx.fill();
+    ctx.fillStyle=sube?'#059669':'#dc2626';ctx.fill();
   });
 
   // Labels X
@@ -2069,9 +2384,89 @@ function renderChartAhorro(){
   }
 }
 
-// ═══════════════════════════════════════════════════
-// GASTOS
-// ═══════════════════════════════════════════════════
+function renderBarrasGasto(){
+  const canvas=document.getElementById('chart-barras-gasto');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const now=new Date();
+  const presup=parseFloat(db.config.presupuesto_mensual||0);
+
+  // Últimos 6 meses
+  const meses=[];
+  for(let i=5;i>=0;i--){
+    let m=now.getMonth()-i, y=now.getFullYear();
+    if(m<0){m+=12;y--;}
+    const gasto=gastoNetoMes(m,y);
+    meses.push({label:MESES[m].slice(0,3),gasto,m,y});
+  }
+
+  const containerW=canvas.parentElement.clientWidth||320;
+  const H=120; const dpr=window.devicePixelRatio||1;
+  canvas.style.width=containerW+'px'; canvas.style.height=H+'px';
+  canvas.width=containerW*dpr; canvas.height=H*dpr;
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,containerW,H);
+
+  const pad={l:8,r:8,t:14,b:22};
+  const W=containerW;
+  const chartW=W-pad.l-pad.r;
+  const chartH=H-pad.t-pad.b;
+  const maxVal=Math.max(...meses.map(x=>x.gasto),presup,1);
+  const barW=Math.floor(chartW/meses.length*0.55);
+  const gap=chartW/meses.length;
+  const mesActualIdx=5; // último siempre es el mes actual
+
+  // Línea presupuesto
+  if(presup>0){
+    const py=pad.t+chartH-((presup/maxVal)*chartH);
+    ctx.setLineDash([4,4]);
+    ctx.strokeStyle='rgba(77,121,255,0.45)';
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.l,py);ctx.lineTo(W-pad.r,py);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(77,121,255,0.6)';
+    ctx.font='8px Inter';ctx.textAlign='right';
+    ctx.fillText('Presup.',W-pad.r-2,py-3);
+  }
+
+  // Barras
+  meses.forEach((mes,i)=>{
+    const barH=Math.max(2,(mes.gasto/maxVal)*chartH);
+    const x=pad.l+i*gap+(gap-barW)/2;
+    const y=pad.t+chartH-barH;
+    const esActual=i===mesActualIdx;
+    const sobrePresup=presup>0&&mes.gasto>presup;
+    const color=sobrePresup?'#dc2626':esActual?'#4D79FF':'#4e5e78';
+    const alpha=esActual?'ff':i===4?'cc':'88';
+
+    // Barra
+    ctx.fillStyle=color+(esActual?'':alpha);
+    const radius=3;
+    ctx.beginPath();
+    ctx.moveTo(x+radius,y);
+    ctx.lineTo(x+barW-radius,y);
+    ctx.quadraticCurveTo(x+barW,y,x+barW,y+radius);
+    ctx.lineTo(x+barW,y+barH);
+    ctx.lineTo(x,y+barH);
+    ctx.lineTo(x,y+radius);
+    ctx.quadraticCurveTo(x,y,x+radius,y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Valor encima de la barra actual
+    if(esActual&&mes.gasto>0){
+      ctx.fillStyle=sobrePresup?'#dc2626':'#4D79FF';
+      ctx.font='bold 9px Inter';ctx.textAlign='center';
+      ctx.fillText(fmt(mes.gasto),x+barW/2,Math.max(y-4,10));
+    }
+
+    // Label mes
+    ctx.fillStyle=esActual?'var(--text)':'#4e5e78';
+    ctx.font=(esActual?'bold ':'')+'9px Inter';
+    ctx.textAlign='center';
+    ctx.fillText(mes.label,x+barW/2,H-5);
+  });
+}
 let gtab='variables';
 
 function renderGastos(){
@@ -2136,7 +2531,7 @@ function changeMonth(d){
 
 function switchGTab(t){
   gtab=t;
-  const tabs=['variables','inversiones','fijos','fiado'];
+  const tabs=['variables','inversiones','fijos','fiado','comparativa'];
   document.querySelectorAll('#page-gastos .tab').forEach((b,i)=>b.classList.toggle('active',tabs[i]===t));
   tabs.forEach(x=>document.getElementById('gtab-'+x).style.display=x===t?'':'none');
   renderGTab();
@@ -2146,9 +2541,99 @@ function renderGTab(){
   else if(gtab==='fijos')renderFijosView();
   else if(gtab==='fiado')renderFiadoView();
   else if(gtab==='inversiones')renderInversionesMes();
+  else if(gtab==='comparativa')renderComparativa();
 }
 
-function renderCatPillsFilter(){
+function renderComparativa(){
+  const el=document.getElementById('comparativa-content');
+  if(!el)return;
+  const now=new Date();
+  const cats=getCats();
+
+  // Últimos 4 meses incluyendo el actual
+  const meses=[];
+  for(let i=3;i>=0;i--){
+    let m=curMonth-i, y=curYear;
+    if(m<0){m+=12;y--;}
+    meses.push({m,y,label:MESES[m].slice(0,3)+(y!==curYear?' '+y:'')});
+  }
+
+  // Gasto por categoría por mes (solo gastos normales)
+  const porCatMes={};
+  meses.forEach(({m,y})=>{
+    const key=`${y}-${m}`;
+    porCatMes[key]={};
+    db.gastos.filter(g=>{const d=new Date(g.fecha);return d.getMonth()===m&&d.getFullYear()===y&&g.tipo==='gasto';})
+      .forEach(g=>{const c=g.categoria||'❓ Sin clasificar';porCatMes[key][c]=(porCatMes[key][c]||0)+parseFloat(g.importe||0)-parseFloat(g.reembolso||0);});
+  });
+
+  // Todas las categorías con gasto en alguno de los 4 meses
+  const allCats=new Set();
+  meses.forEach(({m,y})=>Object.keys(porCatMes[`${y}-${m}`]||{}).forEach(c=>allCats.add(c)));
+  if(!allCats.size){el.innerHTML='<div class="empty" style="padding:32px 0;"><div class="ei">📊</div>Sin datos suficientes para comparar</div>';return;}
+
+  // Ordenar cats por gasto total descendente
+  const catsOrdered=[...allCats].sort((a,b)=>{
+    const ta=meses.reduce((s,{m,y})=>s+(porCatMes[`${y}-${m}`][a]||0),0);
+    const tb=meses.reduce((s,{m,y})=>s+(porCatMes[`${y}-${m}`][b]||0),0);
+    return tb-ta;
+  });
+
+  // Valor máximo para escalar barras
+  const maxVal=Math.max(...meses.flatMap(({m,y})=>Object.values(porCatMes[`${y}-${m}`]||{})),1);
+  const mesActualKey=`${curYear}-${curMonth}`;
+  const mesAnteriorKey=meses.length>=2?`${meses[meses.length-2].y}-${meses[meses.length-2].m}`:null;
+
+  const BAR_COLORS=['#4D79FF','#10b981','#d97706','#8b5cf6'];
+
+  let html=`
+  <!-- Cabecera meses -->
+  <div style="display:grid;grid-template-columns:1fr repeat(${meses.length},60px);gap:4px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:8px;">
+    <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;">Categoría</div>
+    ${meses.map((mes,i)=>`<div style="font-size:10px;color:${i===meses.length-1?'var(--accent)':'var(--text3)'};font-weight:${i===meses.length-1?'700':'400'};text-align:right;">${mes.label}</div>`).join('')}
+  </div>`;
+
+  catsOrdered.forEach(cat=>{
+    const vals=meses.map(({m,y})=>porCatMes[`${y}-${m}`][cat]||0);
+    const valActual=vals[vals.length-1];
+    const valAnterior=vals.length>=2?vals[vals.length-2]:0;
+    const diff=valActual-valAnterior;
+    const diffPct=valAnterior>0?((diff/valAnterior)*100):null;
+    const diffColor=diff>0?'var(--red)':diff<0?'var(--green)':'var(--text3)';
+    const diffArrow=diff>0?'↑':diff<0?'↓':'—';
+    const emoji=cats.find(c=>c.e+' '+c.n===cat)?.e||'💸';
+
+    html+=`<div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+        <span style="font-size:12px;font-weight:600;color:var(--text);">${emoji} ${cat}</span>
+        ${diffPct!==null&&valActual>0?`<span style="font-size:10px;color:${diffColor};font-weight:700;">${diffArrow} ${Math.abs(diffPct).toFixed(0)}% vs mes ant.</span>`:''}
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:36px;margin-bottom:3px;">
+        ${vals.map((v,i)=>{
+          const h=v>0?Math.max(4,Math.round((v/maxVal)*36)):2;
+          const isActual=i===vals.length-1;
+          return `<div style="flex:1;display:flex;align-items:flex-end;">
+            <div title="${fmt(v)}" style="width:100%;height:${h}px;background:${BAR_COLORS[i]};opacity:${isActual?1:0.45};border-radius:2px 2px 0 0;"></div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(${meses.length},1fr);gap:4px;">
+        ${vals.map((v,i)=>`<div style="font-size:9px;color:${i===vals.length-1?'var(--text)':'var(--text3)'};font-weight:${i===vals.length-1?'600':'400'};text-align:center;">${v>0?fmt(v):'—'}</div>`).join('')}
+      </div>
+    </div>`;
+  });
+
+  // Total fila
+  const totales=meses.map(({m,y})=>Object.values(porCatMes[`${y}-${m}`]||{}).reduce((s,v)=>s+v,0));
+  html+=`<div style="border-top:2px solid var(--border);padding-top:10px;margin-top:4px;">
+    <div style="display:grid;grid-template-columns:1fr repeat(${meses.length},60px);gap:4px;align-items:center;">
+      <div style="font-size:11px;font-weight:700;color:var(--text);">Total variable</div>
+      ${totales.map((t,i)=>`<div style="font-size:11px;font-weight:${i===totales.length-1?'700':'400'};color:${i===totales.length-1?'var(--red)':'var(--text3)'};text-align:right;">${fmt(t)}</div>`).join('')}
+    </div>
+  </div>`;
+
+  el.innerHTML=html;
+}
   const cats=getCats();
   const el=document.getElementById('cat-pills-filter');
   let html='<div class="cat-pill '+(curCat==='all'?'active':'')+'" onclick="filterCat(\'all\')">Todos</div>';
@@ -2171,7 +2656,7 @@ function renderVariables(){
   const items=db.gastos.filter(g=>{
     const d=new Date(g.fecha);
     const enMes=d.getMonth()===curMonth&&d.getFullYear()===curYear;
-    const esMovimiento=g.tipo==='gasto'||g.tipo==='ingreso';
+    const esMovimiento=g.tipo==='gasto'||g.tipo==='ingreso'||g.tipo==='ingreso_extra'||g.tipo==='gasto_extra';
     const catOk=curCat==='all'||g.categoria===curCat;
     return enMes&&esMovimiento&&catOk;
   }).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
@@ -2179,18 +2664,25 @@ function renderVariables(){
   if(!items.length){el.innerHTML='<div class="empty"><div class="ei">💸</div>Sin movimientos este mes</div>';return;}
   el.innerHTML=items.map(g=>{
     const esIngreso=g.tipo==='ingreso';
-    const neto=esIngreso?parseFloat(g.importe||0):parseFloat(g.importe||0)-parseFloat(g.reembolso||0);
+    const esIngresoExtra=g.tipo==='ingreso_extra';
+    const esGastoExtra=g.tipo==='gasto_extra';
+    const neto=(esIngreso||esIngresoExtra||esGastoExtra)?parseFloat(g.importe||0):parseFloat(g.importe||0)-parseFloat(g.reembolso||0);
     const d=new Date(g.fecha);
-    const emoji=esIngreso?'💰':cats.find(c=>c.e+' '+c.n===g.categoria)?.e||'💸';
-    const bgIcon=esIngreso?'var(--green-light)':'var(--surface2)';
-    const bdIcon=esIngreso?'var(--green-border)':'var(--border)';
+    const emoji=esIngresoExtra?'🎁':esGastoExtra?'🧳':esIngreso?'💰':cats.find(c=>c.e+' '+c.n===g.categoria)?.e||'💸';
+    const bgIcon=esIngresoExtra?'var(--amber-light)':esGastoExtra?'var(--red-light)':esIngreso?'var(--green-light)':'var(--surface2)';
+    const bdIcon=esIngresoExtra?'var(--amber-border)':esGastoExtra?'var(--red-border)':esIngreso?'var(--green-border)':'var(--border)';
     const editBtn=!esIngreso?'<span style="font-size:11px;color:var(--accent);cursor:pointer;" onclick="editarGasto(\''+g.id+'\')">✎</span>':'';
+    const badge=esIngresoExtra?'<span class="badge amber" style="font-size:9px;padding:2px 6px;margin-top:2px;display:inline-block;">Extraordinario · no computa en ahorro mensual</span>'
+      :esGastoExtra?'<span class="badge red" style="font-size:9px;padding:2px 6px;margin-top:2px;display:inline-block;">Extraordinario · no computa en presupuesto mensual</span>':'';
+    const amtClass=esIngresoExtra?'amber':esIngreso?'green':'red';
+    const prefix=esIngreso||esIngresoExtra?'+':'-';
     return '<div class="list-item">'
       +'<div class="list-icon" style="background:'+bgIcon+';border-color:'+bdIcon+'">'+emoji+'</div>'
       +'<div class="list-info"><div class="list-name">'+(g.concepto||g.categoria)+'</div>'
-      +'<div class="list-meta">'+g.categoria+' · '+d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear()+(!esIngreso&&g.reembolso>0?' · reemb. '+fmt(g.reembolso):'')+'</div></div>'
+      +'<div class="list-meta">'+g.categoria+' · '+d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear()+(!esIngreso&&!esIngresoExtra&&!esGastoExtra&&g.reembolso>0?' · reemb. '+fmt(g.reembolso):'')+'</div>'
+      +badge+'</div>'
       +'<div class="list-right">'
-      +'<div class="list-amt '+(esIngreso?'green':'red')+'">'+(esIngreso?'+':'')+fmt(neto)+'</div>'
+      +'<div class="list-amt '+amtClass+'">'+prefix+fmt(neto)+'</div>'
       +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:3px;">'
       +editBtn
       +'<span style="font-size:11px;color:var(--red);cursor:pointer;" onclick="borrarGasto(\''+g.id+'\')">✕</span>'
@@ -2329,9 +2821,8 @@ function registrarPagoFiado(personaEnc,deudaTotal){
   if(!db.pagos_fiado)db.pagos_fiado=[];
   db.pagos_fiado.push({id:uid(),persona,importe:importeReal,fecha:new Date().toISOString().split('T')[0]});
   save();
-  renderFiadoView();
   checkAlertas();
-  if(curPage==='dashboard')renderDash();
+  refreshCurrentPage();
 }
 
 function verDetallesFiado(personaEnc){
@@ -2376,9 +2867,8 @@ function editarDevolucion(id){
 }
 
 function borrarDevolucion(id){
-  if(!confirm('¿Eliminar esta devolución?'))return;
-  db.pagos_fiado=(db.pagos_fiado||[]).filter(x=>x.id!==id);
-  save();renderFiadoView();checkAlertas();if(curPage==='dashboard')renderDash();
+  if(!id)return;
+  showConfirm({title:'¿Eliminar devolución?',msg:'Esta acción no se puede deshacer.',onOk:()=>{db.pagos_fiado=(db.pagos_fiado||[]).filter(x=>x.id!==id);save();checkAlertas();refreshCurrentPage();}});
 }
 
 function renderInversionesMes(){
@@ -2528,9 +3018,10 @@ function abrirModalInvPuntual(id){
 }
 function editarInvPuntual(id){abrirModalInvPuntual(id);}
 function borrarInvPuntual(id){
-  if(!confirm('¿Eliminar esta inversión puntual?'))return;
+  if(!id)return;
+  showConfirm({title:'¿Eliminar inversión puntual?',msg:'Esta acción no se puede deshacer.',onOk:()=>{db.inversiones_puntuales=(db.inversiones_puntuales||[]).filter(x=>x.id!==id);save();renderInversionesMes();}});
   db.inversiones_puntuales=(db.inversiones_puntuales||[]).filter(x=>x.id!==id);
-  save();renderInversionesMes();renderGastos();if(curPage==='dashboard')renderDash();
+  save();refreshCurrentPage();
 }
 function onInvPuntualSelChange(){
   const sel=document.getElementById('inv-punt-concepto-sel').value;
@@ -2551,7 +3042,7 @@ function guardarInvPuntual(){
   if(editId){const i=db.inversiones_puntuales.findIndex(x=>x.id===editId);if(i!==-1)db.inversiones_puntuales[i]=obj;}
   else db.inversiones_puntuales.push(obj);
   save();document.getElementById('modal-inv-puntual').classList.remove('open');
-  renderInversionesMes();renderGastos();if(curPage==='dashboard')renderDash();
+  refreshCurrentPage();
 }
 
 function confirmarAportacion(activoId,valor){
@@ -2566,7 +3057,7 @@ function confirmarAportacion(activoId,valor){
     if(idx!==-1)db.confirmaciones_inversion[idx]=obj;
     else db.confirmaciones_inversion.push(obj);
   }
-  save();renderInversionesMes();renderGastos();if(curPage==='dashboard')renderDash();
+  save();refreshCurrentPage();
 }
 
 function registrarIntereses(cuentaId,valor,fecha){
@@ -2599,7 +3090,7 @@ function registrarIntereses(cuentaId,valor,fecha){
     if(idx!==-1)db.pagos_intereses[idx]=obj;
     else db.pagos_intereses.push(obj);
   }
-  save();renderInversionesMes();renderCuentas();if(curPage==='dashboard')renderDash();
+  save();refreshCurrentPage();
 }
 
 function renderIngresosView(){renderInversionesMes();}// alias legacy
@@ -2617,16 +3108,28 @@ function renderCartera(){
   pb.style.background=pnl>=0?'rgba(16,185,129,0.15)':'rgba(240,79,90,0.15)';
   pb.style.color=pnl>=0?'var(--green)':'var(--red)';
   pb.style.borderColor=pnl>=0?'rgba(16,185,129,0.3)':'rgba(240,79,90,0.3)';
-  if(db.precios_ts){const d=new Date(db.precios_ts);document.getElementById('inv-update-time').textContent='Act. '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});}
+  if(db.precios_ts){
+    const d=new Date(db.precios_ts);
+    const dias=Math.floor((Date.now()-d.getTime())/(1000*60*60*24));
+    const horaStr=d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+    const fechaStr=dias===0?'hoy '+horaStr:dias===1?'ayer':`hace ${dias} días`;
+    const el=document.getElementById('inv-update-time');
+    if(el){el.textContent='Precios: '+fechaStr;el.style.color=dias>7?'var(--amber)':dias>30?'var(--red)':'var(--text3)';}
+  }
 
   const pw={ETF:0,Fondo:0,Metal:0,Cripto:0,Acciones:0};
   db.activos.forEach(a=>{const v=parseFloat(a.unidades||0)*parseFloat(a.precio_actual||0);pw[a.categoria]=(pw[a.categoria]||0)+v;});
   const core=tv>0?(pw.ETF+pw.Fondo)/tv*100:0,metal=tv>0?pw.Metal/tv*100:0,cripto=tv>0?pw.Cripto/tv*100:0,acc=tv>0?pw.Acciones/tv*100:0;
-
-  const pe=document.getElementById('inv-p-etf');pe.textContent=core.toFixed(1)+'%';pe.className='mv '+(core>=59&&core<=65?'green':core<55||core>68?'red':'accent');
-  const pm=document.getElementById('inv-p-metal');pm.textContent=metal.toFixed(1)+'%';pm.className='mv '+(metal>=17&&metal<=23?'green':metal<14?'red':'accent');
-  const pc=document.getElementById('inv-p-cripto');pc.textContent=cripto.toFixed(1)+'%';pc.className='mv '+(cripto>=12&&cripto<=18?'green':cripto>18?'red':'amber');
-  const pa=document.getElementById('inv-p-acc');pa.textContent=acc.toFixed(1)+'%';pa.className='mv '+(acc<=6?'green':'red');
+  const oi=getObjInversion();
+  const tol=3; // tolerancia ±3%
+  const pe=document.getElementById('inv-p-etf');pe.textContent=core.toFixed(1)+'%';pe.className='mv '+(Math.abs(core-oi.etf)<=tol?'green':Math.abs(core-oi.etf)<=tol*2?'accent':'red');
+  const pm=document.getElementById('inv-p-metal');pm.textContent=metal.toFixed(1)+'%';pm.className='mv '+(Math.abs(metal-oi.metal)<=tol?'green':Math.abs(metal-oi.metal)<=tol*2?'accent':'red');
+  const pc=document.getElementById('inv-p-cripto');pc.textContent=cripto.toFixed(1)+'%';pc.className='mv '+(cripto<=oi.cripto?'green':cripto<=oi.cripto+tol?'amber':'red');
+  const pa=document.getElementById('inv-p-acc');pa.textContent=acc.toFixed(1)+'%';pa.className='mv '+(acc<=oi.acc+tol?'green':'red');
+  const se=document.getElementById('inv-s-etf');if(se)se.textContent='objetivo ~'+oi.etf+'%';
+  const sm=document.getElementById('inv-s-metal');if(sm)sm.textContent='objetivo ~'+oi.metal+'%';
+  const sc=document.getElementById('inv-s-cripto');if(sc)sc.textContent='máx '+oi.cripto+'%';
+  const sa=document.getElementById('inv-s-acc');if(sa)sa.textContent='especulat. <'+(oi.acc+tol)+'%';
 
   // Aportaciones
   const actAport=db.activos.filter(a=>parseFloat(a.aportacion||0)>0);
@@ -2643,6 +3146,85 @@ function renderCartera(){
   irpfSel.innerHTML='<option value="">Selecciona un activo</option>'+db.activos.map(a=>`<option value="${a.id}">${a.nombre}</option>`).join('');
 
   renderListaActivos();renderVendidos();
+  renderDonutCartera(pw,tv,oi,tol);
+}
+
+function renderDonutCartera(pw,tv,oi,tol){
+  const canvas=document.getElementById('canvas-donut-cartera');
+  if(!canvas)return;
+  const dpr=window.devicePixelRatio||1;
+  const SIZE=130;
+  canvas.width=SIZE*dpr; canvas.height=SIZE*dpr;
+  canvas.style.width=SIZE+'px'; canvas.style.height=SIZE+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,SIZE,SIZE);
+
+  const cx=SIZE/2, cy=SIZE/2, R=54, r=36;
+  const segments=[
+    {label:'ETF + Fondos', val:(pw.ETF+pw.Fondo), obj:oi.etf, color:'#4D79FF'},
+    {label:'Metales',      val:pw.Metal,           obj:oi.metal, color:'#d97706'},
+    {label:'Cripto',       val:pw.Cripto,          obj:oi.cripto, color:'#8b5cf6'},
+    {label:'Acciones',     val:pw.Acciones,        obj:oi.acc, color:'#10b981'},
+  ];
+  const total=segments.reduce((s,x)=>s+x.val,0)||1;
+
+  // Draw arcs
+  let angle=-Math.PI/2;
+  segments.forEach(seg=>{
+    const sweep=(seg.val/total)*Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,R,angle,angle+sweep);
+    ctx.closePath();
+    ctx.fillStyle=seg.color;
+    ctx.fill();
+    // inner hole
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--surface')||'#0d1117';
+    ctx.fill();
+    angle+=sweep;
+  });
+
+  // Objetivo arcs (thin ring outside)
+  angle=-Math.PI/2;
+  segments.forEach(seg=>{
+    const objSweep=(seg.obj/100)*Math.PI*2;
+    ctx.beginPath();
+    ctx.arc(cx,cy,R+5,angle,angle+objSweep);
+    ctx.strokeStyle=seg.color+'66';
+    ctx.lineWidth=3;
+    ctx.stroke();
+    angle+=(seg.val/total)*Math.PI*2;
+  });
+
+  // Center value
+  const centerEl=document.getElementById('donut-center-val');
+  if(centerEl)centerEl.textContent=tv>0?fmt(tv):'Sin datos';
+
+  // Legend
+  const legend=document.getElementById('donut-legend-cartera');
+  if(!legend)return;
+  legend.innerHTML=segments.map(seg=>{
+    const pct=tv>0?((seg.val/total)*100):0;
+    const diff=pct-seg.obj;
+    const ok=Math.abs(diff)<=tol;
+    const warn=Math.abs(diff)<=tol*2;
+    const statusColor=ok?'var(--green)':warn?'var(--amber)':'var(--red)';
+    const arrow=diff>tol?'↑':diff<-tol?'↓':'✓';
+    return `<div style="display:flex;align-items:center;gap:8px;">
+      <div style="width:10px;height:10px;border-radius:2px;background:${seg.color};flex-shrink:0;"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${seg.label}</div>
+        <div style="font-size:10px;color:var(--text3);">obj. ${seg.obj}%</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${pct.toFixed(1)}%</div>
+        <div style="font-size:10px;color:${statusColor};font-weight:600;">${arrow}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function switchInvTab(t){
@@ -2684,8 +3266,11 @@ function renderListaActivos(){
         ${a.notas?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">${a.notas}</div>`:''}
       </div>
       <div class="inv-right">
+        <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-bottom:2px;">
+          <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:${pnl>=0?'var(--green-light)':'var(--red-light)'};color:${pnl>=0?'var(--green)':'var(--red)'};">${pnl>=0?'+':''}${(pp*100).toFixed(1)}%</span>
+        </div>
         <div class="inv-value">${fmt(val)}</div>
-        <div class="inv-pnl ${pnl>=0?'green':'red'}">${fmtS(pnl)} (${pnl>=0?'+':''}${(pp*100).toFixed(2)}%)</div>
+        <div class="inv-pnl ${pnl>=0?'green':'red'}">${fmtS(pnl)}</div>
         ${a.api?`<div style="margin-top:4px;"><button class="btn btn-icon" style="width:24px;height:24px;font-size:11px;border-radius:6px;" onclick="event.stopPropagation();actualizarPrecioUnico('${a.id}',this)" title="Actualizar precio">⚡</button></div>`:''}
       </div>
     </div>`;
@@ -2787,18 +3372,16 @@ function openRebalanceo(){
   const el=document.getElementById('reb-content');
   if(tv===0){el.innerHTML='<div class="empty"><div class="ei">📊</div>Sin datos de cartera</div>';openModal('modal-rebalanceo');return;}
 
-  // Objetivos por categoría (%)
-  const objetivos={ETF:62,Fondo:0,Metal:20,Cripto:15,Acciones:3};
-  // Ajustar ETF+Fondo juntos
+  // Objetivos por categoría desde config
+  const oi=getObjInversion();
   const pw={ETF:0,Fondo:0,Metal:0,Cripto:0,Acciones:0};
   db.activos.forEach(a=>{const v=parseFloat(a.unidades||0)*parseFloat(a.precio_actual||0);pw[a.categoria]=(pw[a.categoria]||0)+v;});
 
-  // ETF+Fondo combined target: 42.5%
   const etfFondoCombined=(pw.ETF+pw.Fondo);
-  const etfFondoTarget=tv*0.62;
-  const metalTarget=tv*0.20;
-  const criptoTarget=tv*0.15;
-  const accTarget=tv*0.03;
+  const etfFondoTarget=tv*(oi.etf/100);
+  const metalTarget=tv*(oi.metal/100);
+  const criptoTarget=tv*(oi.cripto/100);
+  const accTarget=tv*(oi.acc/100);
 
   const rows=[
     {cat:'ETF + Fondos',actual:etfFondoCombined,target:etfFondoTarget},
@@ -2854,7 +3437,7 @@ function renderCuentas(){
     </div>`;
   }).join('');
 
-  const ultima=db.nominas.slice(-1)[0];
+  const ultima=[...db.nominas].sort((a,b)=>(b.año*12+b.mes)-(a.año*12+a.mes))[0];
   document.getElementById('nomina-val').textContent=ultima?fmt(ultima.importe):'€0';
   document.getElementById('nomina-sub-txt').textContent=ultima?`${MESES[ultima.mes-1]} ${ultima.año}${ultima.notas?' · '+ultima.notas:''}` :'Sin nómina registrada';
 
@@ -2867,7 +3450,7 @@ function renderCuentas(){
       const emap={ahorro:'💰',inversion:'📈',viaje:'✈️',capricho:'🎁',otro:'📋'};
       return `<div class="list-item"><div class="list-icon">${emap[n.destino]||'📋'}</div><div class="list-info"><div class="list-name">Paga extra · ${MESES[n.mes-1]} ${n.año}</div><div class="list-meta">${n.desc||n.destino}</div></div><div class="list-right"><div class="list-amt accent">+${fmt(n.importe)}</div><span style="font-size:11px;color:var(--red);cursor:pointer;" onclick="borrarPagaExtra('${n.id}')">✕</span></div></div>`;
     }
-    return `<div class="list-item"><div class="list-icon gray">💼</div><div class="list-info"><div class="list-name">${MESES[n.mes-1]} ${n.año}</div><div class="list-meta">${n.notas||'Nómina'}</div></div><div class="list-right"><div class="list-amt">${fmt(n.importe)}</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:3px;"><span style="font-size:11px;color:var(--accent);cursor:pointer;" onclick="editarNomina('${n.id}')">✎</span><span style="font-size:11px;color:var(--red);cursor:pointer;" onclick="borrarNomina('${n.id}')">✕</span></div></div></div>`;
+    return `<div class="list-item"><div class="list-icon gray">💼</div><div class="list-info"><div class="list-name">${MESES[n.mes-1]} ${n.año}</div><div class="list-meta">${n.notas||'Nómina'}${n.importe_regular?' · Habitual: '+fmt(n.importe_regular):''}</div>${n.extra_nomina?`<span class="badge amber" style="font-size:9px;padding:2px 6px;margin-top:2px;display:inline-block;">+${fmt(n.extra_nomina)} paga extra</span>`:''}</div><div class="list-right"><div class="list-amt">${fmt(n.importe)}</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:3px;"><span style="font-size:11px;color:var(--accent);cursor:pointer;" onclick="editarNomina('${n.id}')">✎</span><span style="font-size:11px;color:var(--red);cursor:pointer;" onclick="borrarNomina('${n.id}')">✕</span></div></div></div>`;
   }).join('');
 }
 
@@ -2877,11 +3460,36 @@ function renderCuentas(){
 function renderConfig(){
   document.getElementById('cfg-obj').textContent=fmt(db.config.obj_ahorro);
   document.getElementById('cfg-pres').textContent=fmt(db.config.presupuesto_mensual);
+  const fijosRef=document.getElementById('cfg-fijos-ref');
+  if(fijosRef)fijosRef.textContent=fmt(totalFijos()+totalProrrata());
   document.getElementById('cfg-gas').textContent=fmt(db.config.presupuesto_gasolina);
   document.getElementById('cfg-ipc').textContent=(db.config.ipc||3)+'%';
   document.getElementById('cfg-fx').textContent=parseFloat(db.config.usd_eur||0.92).toFixed(4);
+  document.getElementById('cfg-pct-extra').textContent=(db.config.pct_extra_sugerido||20)+'%';
+  const tasaObjEl=document.getElementById('cfg-tasa-obj');
+  if(tasaObjEl)tasaObjEl.textContent=(db.config.tasa_ahorro_obj||20)+'%';
+  // Objetivos inversión
+  const oi=getObjInversion();
+  document.getElementById('cfg-obj-etf').textContent=oi.etf+'%';
+  document.getElementById('cfg-obj-metal').textContent=oi.metal+'%';
+  document.getElementById('cfg-obj-cripto').textContent=oi.cripto+'%';
+  document.getElementById('cfg-obj-acc').textContent=oi.acc+'%';
+  const total=oi.etf+oi.metal+oi.cripto+oi.acc;
+  const totalEl=document.getElementById('cfg-obj-total');
+  totalEl.textContent=total+'%';
+  totalEl.style.color=total===100?'var(--green)':total>100?'var(--red)':'var(--amber)';
+  // Alerta backup
   const last=localStorage.getItem('matthai_backup_ts');
-  document.getElementById('cfg-backup-fecha').textContent=last?'Último: '+last:'Nunca realizado';
+  if(last){
+    const d=new Date(last);
+    const dias=Math.floor((Date.now()-d.getTime())/(1000*60*60*24));
+    const label=dias===0?'hoy':dias===1?'ayer':`hace ${dias} días`;
+    document.getElementById('cfg-backup-fecha').textContent=`Último: ${d.toLocaleDateString('es-ES')} (${label})`;
+    document.getElementById('cfg-backup-fecha').style.color=dias>30?'var(--amber)':'var(--text3)';
+  } else {
+    document.getElementById('cfg-backup-fecha').textContent='Nunca realizado';
+    document.getElementById('cfg-backup-fecha').style.color='var(--amber)';
+  }
 
   const cEl=document.getElementById('cfg-lista-cuentas');
   if(!db.cuentas.length)cEl.innerHTML='<div class="empty" style="padding:16px 0;"><div class="ei">🏦</div>Sin cuentas</div>';
@@ -2913,6 +3521,24 @@ function renderConfig(){
 function editCfg(key,label){
   const val=prompt(label,db.config[key]);
   if(val!==null&&!isNaN(parseFloat(val))){db.config[key]=parseFloat(val);save();renderConfig();}
+}
+function editCfgPct(key,label,min,max){
+  const current=db.config[key]!==undefined?db.config[key]:(key==='pct_extra_sugerido'?20:key==='obj_etf'?62:key==='obj_metal'?20:key==='obj_cripto'?15:3);
+  const val=prompt(label+' ('+min+'–'+max+')',current);
+  if(val===null)return;
+  const n=parseFloat(val);
+  if(isNaN(n)||n<min||n>max){alert('Valor fuera de rango ('+min+'–'+max+')');return;}
+  db.config[key]=n;save();renderConfig();
+  refreshCurrentPage();
+}
+// Fuente única de verdad para objetivos de inversión
+function getObjInversion(){
+  return {
+    etf: db.config.obj_etf!==undefined?db.config.obj_etf:62,
+    metal: db.config.obj_metal!==undefined?db.config.obj_metal:20,
+    cripto: db.config.obj_cripto!==undefined?db.config.obj_cripto:15,
+    acc: db.config.obj_acc!==undefined?db.config.obj_acc:3,
+  };
 }
 function editarAportacion(id){
   const a=db.activos.find(x=>x.id===id);if(!a)return;
@@ -2961,10 +3587,11 @@ let curFiadoModo='nuevo';    // nuevo | devolucion
 function initModalGasto(){
   const today=new Date().toISOString().split('T')[0];
   ['g-importe','g-concepto','g-reembolso',
-   'g-traspaso-importe','g-ing-importe','g-ing-concepto',
+   'g-ext-importe','g-ext-concepto',
+   'g-traspaso-importe','g-ing-importe','g-ing-concepto','g-ing-ext-concepto',
    'g-prestamo-persona','g-prestamo-concepto','g-prestamo-importe',
    'g-devol-importe','g-devol-persona-manual'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  ['g-fecha','g-traspaso-fecha','g-ing-fecha','g-prestamo-fecha','g-devol-fecha']
+  ['g-fecha','g-ext-fecha','g-traspaso-fecha','g-ing-fecha','g-prestamo-fecha','g-devol-fecha']
     .forEach(id=>{const e=document.getElementById(id);if(e)e.value=today;});
   document.getElementById('g-edit-id').value='';
   curMovTipo='gasto'; curIngresoTipo='intereses'; curFiadoModo='nuevo';
@@ -2973,7 +3600,7 @@ function initModalGasto(){
 
 function setMovTipo(tipo){
   curMovTipo=tipo;
-  ['gasto','traspaso','ingreso','fiado'].forEach(t=>{
+  ['gasto','gasto_extra','traspaso','ingreso','fiado'].forEach(t=>{
     document.getElementById('movbtn-'+t).classList.toggle('active',t===tipo);
     document.getElementById('panel-'+t).style.display=t===tipo?'block':'none';
   });
@@ -2983,14 +3610,12 @@ function setMovTipo(tipo){
     setIngresoTipo(curIngresoTipo);
     poblarSelectCuentasIngreso();
   }
-  if(tipo==='fiado'){
-    setFiadoModo(curFiadoModo);
-  }
+  if(tipo==='fiado'){setFiadoModo(curFiadoModo);}
 }
 
 function setIngresoTipo(tipo){
   curIngresoTipo=tipo;
-  ['intereses','gasolina','otros'].forEach(t=>{
+  ['intereses','gasolina','otros','extraordinario'].forEach(t=>{
     document.getElementById('ingbtn-'+t).classList.toggle('active',t===tipo);
     document.getElementById('ing-'+t+'-section').style.display=t===tipo?'block':'none';
   });
@@ -3122,8 +3747,26 @@ function initModalNomina(){
   const now=new Date();
   document.getElementById('nom-mes').value=now.getMonth()+1;
   document.getElementById('nom-año').value=now.getFullYear();
-  ['nom-importe','nom-notas'].forEach(id=>document.getElementById(id).value='');
+  ['nom-importe','nom-notas','nom-importe-regular'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('nom-edit-id').value='';
+  document.getElementById('nom-tiene-extra').value='0';
+  document.getElementById('nom-tiene-extra-toggle').classList.remove('on');
+  document.getElementById('nom-extra-section').style.display='none';
+  document.getElementById('nom-extra-preview').textContent='€0';
+}
+function toggleNomExtra(){
+  const btn=document.getElementById('nom-tiene-extra-toggle');
+  const activo=btn.classList.toggle('on');
+  document.getElementById('nom-tiene-extra').value=activo?'1':'0';
+  document.getElementById('nom-extra-section').style.display=activo?'block':'none';
+  if(activo)onNomRegularChange();
+}
+function onNomImporteChange(){onNomRegularChange();}
+function onNomRegularChange(){
+  const total=parseInput(document.getElementById('nom-importe').value||'0');
+  const regular=parseInput(document.getElementById('nom-importe-regular').value||'0');
+  const extra=Math.max(0,total-regular);
+  const el=document.getElementById('nom-extra-preview');if(el)el.textContent=fmt(extra);
 }
 function resetFijo(){
   ['fijo-nombre','fijo-importe','fijo-fecha-inicio','fijo-fecha-fin'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
@@ -3249,7 +3892,21 @@ function guardarMovimiento(){
     };
     if(editId){const i=db.gastos.findIndex(x=>x.id===editId);if(i!==-1)db.gastos[i]=obj;}
     else db.gastos.push(obj);
-    save();closeModal('modal-nuevo-gasto');renderGastos();if(curPage==='dashboard')renderDash();
+    save();showToast();closeModal('modal-nuevo-gasto');refreshCurrentPage();
+    return;
+  }
+
+  // ── GASTO EXTRAORDINARIO ──
+  if(curMovTipo==='gasto_extra'){
+    const imp=parseInput(document.getElementById('g-ext-importe').value);
+    if(!imp||imp<=0){alert('Introduce un importe válido');return;}
+    const fecha=document.getElementById('g-ext-fecha').value;
+    if(!fecha){alert('Selecciona una fecha');return;}
+    const concepto=document.getElementById('g-ext-concepto').value||'Gasto extraordinario';
+    const obj={id:editId||uid(),fecha,concepto,categoria:'🧳 Extraordinario',importe:imp,tipo:'gasto_extra',reembolso:0,devolPersona:'',prestamoPersona:'',prestamoFechaDev:'',devuelto:false};
+    if(editId){const i=db.gastos.findIndex(x=>x.id===editId);if(i!==-1)db.gastos[i]=obj;}
+    else db.gastos.push(obj);
+    save();showToast();closeModal('modal-nuevo-gasto');refreshCurrentPage();
     return;
   }
 
@@ -3269,7 +3926,7 @@ function guardarMovimiento(){
     origen.saldo=parseFloat((parseFloat(origen.saldo||0)-imp).toFixed(2));
     destino.saldo=parseFloat((parseFloat(destino.saldo||0)+imp).toFixed(2));
     db.gastos.push({id:uid(),fecha,concepto:`Traspaso → ${destino.nombre}`,categoria:'🔄 Traspaso',importe:imp,tipo:'traspaso',reembolso:0,devolPersona:'',prestamoPersona:'',prestamoFechaDev:'',devuelto:false,traspasoOrigen:origenId,traspasoDestino:destinoId});
-    save();closeModal('modal-nuevo-gasto');renderGastos();renderCuentas();if(curPage==='dashboard')renderDash();
+    save();showToast();closeModal('modal-nuevo-gasto');refreshCurrentPage();
     return;
   }
 
@@ -3288,12 +3945,17 @@ function guardarMovimiento(){
       db.gastos.push({id:uid(),fecha,concepto:`Intereses · ${cuenta?cuenta.nombre:''}`,categoria:'🏦 Intereses',importe:imp,tipo:'ingreso',reembolso:0,devolPersona:'',prestamoPersona:'',prestamoFechaDev:'',devuelto:false,ingresoCuentaId:cuentaId});
     } else if(curIngresoTipo==='gasolina'){
       db.gastos.push({id:uid(),fecha,concepto:'Reembolso gasolina',categoria:'⛽ Gasolina',importe:imp,tipo:'ingreso',reembolso:0,devolPersona:'',prestamoPersona:'',prestamoFechaDev:'',devuelto:false,esReembolsoGasolina:true});
+    } else if(curIngresoTipo==='extraordinario'){
+      const concepto=document.getElementById('g-ing-ext-concepto').value||'Ingreso extraordinario';
+      const obj={id:editId||uid(),fecha,concepto,categoria:'🎁 Extraordinario',importe:imp,tipo:'ingreso_extra',reembolso:0,devolPersona:'',prestamoPersona:'',prestamoFechaDev:'',devuelto:false};
+      if(editId){const i=db.gastos.findIndex(x=>x.id===editId);if(i!==-1)db.gastos[i]=obj;}
+      else db.gastos.push(obj);
     } else {
       // Bizum / ingreso puntual: NO toca saldo de cuentas, solo flujo mensual
       const concepto=document.getElementById('g-ing-concepto').value||'Ingreso';
       db.gastos.push({id:uid(),fecha,concepto,categoria:'💵 Ingreso',importe:imp,tipo:'ingreso',reembolso:0,devolPersona:'',prestamoPersona:'',prestamoFechaDev:'',devuelto:false});
     }
-    save();closeModal('modal-nuevo-gasto');renderGastos();if(curIngresoTipo==='intereses')renderCuentas();if(curPage==='dashboard')renderDash();
+    save();showToast();closeModal('modal-nuevo-gasto');refreshCurrentPage();
     return;
   }
 
@@ -3320,7 +3982,7 @@ function guardarMovimiento(){
       } else {
         db.gastos.push(obj);
       }
-      save();closeModal('modal-nuevo-gasto');if(curPage==='gastos')renderGastos();checkAlertas();if(curPage==='dashboard')renderDash();
+      save();closeModal('modal-nuevo-gasto');checkAlertas();refreshCurrentPage();
     } else {
       // Devolución
       const imp=parseInput(document.getElementById('g-devol-importe').value);
@@ -3347,8 +4009,7 @@ function guardarMovimiento(){
         db.pagos_fiado.push({id:uid(),persona,importe:importeReal,fecha});
       }
       save();closeModal('modal-nuevo-gasto');
-      if(curPage==='gastos')renderGastos();
-      checkAlertas();if(curPage==='dashboard')renderDash();
+      checkAlertas();refreshCurrentPage();
     }
     return;
   }
@@ -3362,8 +4023,7 @@ function editarGasto(id){
   setTimeout(()=>{
     document.getElementById('g-edit-id').value=g.id;
     if(g.tipo==='gasto'){
-      setMovTipo('gasto');
-      document.getElementById('g-importe').value=g.importe;
+      setMovTipo('gasto');      document.getElementById('g-importe').value=g.importe;
       document.getElementById('g-fecha').value=g.fecha;
       document.getElementById('g-concepto').value=g.concepto||'';
       document.getElementById('g-reembolso').value=g.reembolso||'';
@@ -3372,6 +4032,11 @@ function editarGasto(id){
         if(pill){document.querySelectorAll('#modal-cat-pills .cat-pill').forEach(p=>p.classList.remove('active'));pill.classList.add('active');}
         document.getElementById('gas-reembolso-section').style.display=g.categoria==='⛽ Gasolina'?'block':'none';
       }
+    } else if(g.tipo==='gasto_extra'){
+      setMovTipo('gasto_extra');
+      document.getElementById('g-ext-importe').value=g.importe;
+      document.getElementById('g-ext-fecha').value=g.fecha;
+      document.getElementById('g-ext-concepto').value=g.concepto||'';
     } else if(g.tipo==='traspaso'){
       setMovTipo('traspaso');
       document.getElementById('g-traspaso-importe').value=g.importe;
@@ -3380,6 +4045,12 @@ function editarGasto(id){
       setMovTipo('ingreso');
       document.getElementById('g-ing-importe').value=g.importe;
       document.getElementById('g-ing-fecha').value=g.fecha;
+    } else if(g.tipo==='ingreso_extra'){
+      setMovTipo('ingreso');
+      setIngresoTipo('extraordinario');
+      document.getElementById('g-ing-importe').value=g.importe;
+      document.getElementById('g-ing-fecha').value=g.fecha;
+      document.getElementById('g-ing-ext-concepto').value=g.concepto||'';
     } else if(g.tipo==='prestamo'){
       setMovTipo('fiado');setFiadoModo('nuevo');
       // Intentar seleccionar la persona en el selector; si no está, usar campo manual
@@ -3397,10 +4068,16 @@ function editarGasto(id){
       document.getElementById('g-prestamo-importe').value=g.importe;
       document.getElementById('g-prestamo-fecha').value=g.fecha;
       document.getElementById('g-prestamo-concepto').value=g.concepto||'';
+    } else if(g.tipo==='ingreso_extra'){
+      setMovTipo('ingreso');
+      setIngresoTipo('extraordinario');
+      document.getElementById('g-ing-importe').value=g.importe;
+      document.getElementById('g-ing-fecha').value=g.fecha;
+      document.getElementById('g-ing-ext-concepto').value=g.concepto||'';
     }
   },80);
 }
-function borrarGasto(id){if(!confirm('¿Eliminar este movimiento?'))return;db.gastos=db.gastos.filter(x=>x.id!==id);save();renderGastos();if(curPage==='dashboard')renderDash();}
+function borrarGasto(id){showConfirm({title:'¿Eliminar movimiento?',msg:'Esta acción no se puede deshacer.',onOk:()=>{db.gastos=db.gastos.filter(x=>x.id!==id);save();refreshCurrentPage();}});}
 
 function guardarCuenta(){
   const nombre=document.getElementById('cta-nombre').value;if(!nombre){alert('Introduce un nombre');return;}
@@ -3408,7 +4085,7 @@ function guardarCuenta(){
   const obj={id:editId||uid(),nombre,emoji:document.getElementById('cta-emoji').value||'🏦',saldo:parseInput(document.getElementById('cta-saldo').value),tae:parseInput(document.getElementById('cta-tae').value),fecha_interes:document.getElementById('cta-fecha-interes').value};
   if(editId){const i=db.cuentas.findIndex(x=>x.id===editId);if(i!==-1)db.cuentas[i]=obj;}
   else db.cuentas.push(obj);
-  save();closeModal('modal-cuenta');renderConfig();if(curPage==='cuentas')renderCuentas();
+  save();closeModal('modal-cuenta');refreshCurrentPage();
 }
 function editarCuenta(id){
   const c=db.cuentas.find(x=>x.id===id);if(!c)return;
@@ -3421,7 +4098,7 @@ function editarCuenta(id){
   document.getElementById('modal-cuenta-title').textContent='Editar cuenta';
   document.getElementById('modal-cuenta').classList.add('open');
 }
-function borrarCuenta(id){if(!confirm('¿Eliminar esta cuenta?'))return;db.cuentas=db.cuentas.filter(x=>x.id!==id);save();renderConfig();}
+function borrarCuenta(id){showConfirm({title:'¿Eliminar cuenta?',msg:'Se perderá el saldo y el historial de intereses de esta cuenta.',onOk:()=>{db.cuentas=db.cuentas.filter(x=>x.id!==id);save();renderConfig();}});}
 
 function guardarFijo(){
   const nombre=document.getElementById('fijo-nombre').value;
@@ -3461,9 +4138,7 @@ function editarFijo(id){
   document.getElementById('modal-fijo').classList.add('open');
 }
 function borrarFijo(id){
-  if(!confirm('¿Eliminar?'))return;
-  db.fijos=db.fijos.filter(x=>x.id!==id);
-  save();renderConfig();
+  showConfirm({title:'¿Eliminar gasto fijo?',msg:'Dejará de aplicarse a partir del mes que viene.',onOk:()=>{db.fijos=db.fijos.filter(x=>x.id!==id);save();renderConfig();}});
 }
 
 function guardarActivo(){
@@ -3492,7 +4167,7 @@ function guardarActivo(){
   };
   if(editId){const i=db.activos.findIndex(x=>x.id===editId);if(i!==-1)db.activos[i]=obj;}
   else db.activos.push(obj);
-  save();closeModal('modal-activo-cfg');renderConfig();if(curPage==='cartera')renderCartera();
+  save();closeModal('modal-activo-cfg');refreshCurrentPage();
 }
 
 function calcInvertidoAuto(){
@@ -3523,7 +4198,7 @@ function editarActivo(id){
   document.getElementById('modal-activo-title').textContent='Editar: '+a.nombre;
   document.getElementById('modal-activo-cfg').classList.add('open');
 }
-function borrarActivo(id){if(!confirm('¿Eliminar este activo?'))return;db.activos=db.activos.filter(x=>x.id!==id);save();renderConfig();if(curPage==='cartera')renderCartera();}
+function borrarActivo(id){showConfirm({title:'¿Eliminar activo?',msg:'Se perderá todo el historial de este activo. Si lo has vendido, regístralo como venta primero.',onOk:()=>{db.activos=db.activos.filter(x=>x.id!==id);save();refreshCurrentPage();}});}
 
 // Legacy compat para anuales viejos en la BD
 function editarAnualLegacy(id){
@@ -3535,9 +4210,7 @@ function editarAnualLegacy(id){
   save();editarFijo(id);
 }
 function borrarAnualLegacy(id){
-  if(!confirm('¿Eliminar?'))return;
-  db.anuales=(db.anuales||[]).filter(x=>x.id!==id);
-  save();renderConfig();
+  showConfirm({title:'¿Eliminar gasto anual?',msg:'Esta acción no se puede deshacer.',onOk:()=>{db.anuales=(db.anuales||[]).filter(x=>x.id!==id);save();renderConfig();}});
 }
 
 function editarPrecioRapido(id){
@@ -3556,7 +4229,7 @@ function guardarPrecioRapido(){
   const unidades=parseInput(document.getElementById('act2-unidades').value);
   if(precio)a.precio_actual=precio;
   if(unidades)a.unidades=unidades;
-  save();closeModal('modal-nuevo-activo-fab');renderCartera();if(curPage==='dashboard')renderDash();
+  save();closeModal('modal-nuevo-activo-fab');refreshCurrentPage();
 }
 
 function guardarVendido(){
@@ -3567,15 +4240,23 @@ function guardarVendido(){
   else db.vendidos.push(obj);
   save();closeModal('modal-vendido');renderCartera();
 }
-function borrarVendido(id){if(!confirm('¿Eliminar?'))return;db.vendidos=db.vendidos.filter(x=>x.id!==id);save();renderVendidos();}
+function borrarVendido(id){showConfirm({title:'¿Eliminar registro de venta?',msg:'Se eliminará del historial fiscal.',onOk:()=>{db.vendidos=db.vendidos.filter(x=>x.id!==id);save();renderVendidos();}});}
 
 function guardarNomina(){
   const imp=parseInput(document.getElementById('nom-importe').value);if(!imp){alert('Introduce el importe');return;}
+  const tieneExtra=document.getElementById('nom-tiene-extra').value==='1';
   const editId=document.getElementById('nom-edit-id').value;
   const obj={id:editId||uid(),importe:imp,mes:parseInt(document.getElementById('nom-mes').value),año:parseInt(document.getElementById('nom-año').value),notas:document.getElementById('nom-notas').value};
+  if(tieneExtra){
+    const regular=parseInput(document.getElementById('nom-importe-regular').value);
+    if(!regular||regular<=0){alert('Introduce el sueldo mensual habitual');return;}
+    if(regular>imp){alert('El importe habitual no puede superar el total');return;}
+    obj.importe_regular=regular;
+    obj.extra_nomina=parseFloat((imp-regular).toFixed(2));
+  }
   if(editId){const i=db.nominas.findIndex(x=>x.id===editId);if(i!==-1)db.nominas[i]=obj;}
   else db.nominas.push(obj);
-  save();closeModal('modal-nomina');renderCuentas();if(curPage==='dashboard')renderDash();
+  save();showToast('✓ Nómina guardada');closeModal('modal-nomina');refreshCurrentPage();
 }
 function editarNomina(id){
   const n=db.nominas.find(x=>x.id===id);if(!n)return;
@@ -3584,37 +4265,58 @@ function editarNomina(id){
   document.getElementById('nom-año').value=n.año;
   document.getElementById('nom-notas').value=n.notas||'';
   document.getElementById('nom-edit-id').value=n.id;
+  const tieneExtra=!!n.importe_regular;
+  document.getElementById('nom-tiene-extra').value=tieneExtra?'1':'0';
+  const btn=document.getElementById('nom-tiene-extra-toggle');
+  tieneExtra?btn.classList.add('on'):btn.classList.remove('on');
+  document.getElementById('nom-extra-section').style.display=tieneExtra?'block':'none';
+  if(tieneExtra){
+    document.getElementById('nom-importe-regular').value=n.importe_regular;
+    const el=document.getElementById('nom-extra-preview');if(el)el.textContent=fmt(n.extra_nomina||0);
+  }
   openModal('modal-nomina');
 }
-function borrarNomina(id){if(!confirm('¿Eliminar esta nómina?'))return;db.nominas=db.nominas.filter(x=>x.id!==id);save();renderCuentas();}
+function borrarNomina(id){showConfirm({title:'¿Eliminar nómina?',msg:'Afectará al cálculo de ahorro de ese mes.',onOk:()=>{db.nominas=db.nominas.filter(x=>x.id!==id);save();renderCuentas();}});}
 
 function guardarPagaExtra(){
   const imp=parseInput(document.getElementById('extra-importe').value);if(!imp){alert('Introduce el importe');return;}
   db.pagas_extra.push({id:uid(),importe:imp,mes:parseInt(document.getElementById('extra-mes').value),año:parseInt(document.getElementById('extra-año').value),destino:document.getElementById('extra-destino').value,desc:document.getElementById('extra-desc').value});
-  save();closeModal('modal-paga-extra');renderCuentas();
+  save();showToast('✓ Paga extra guardada');closeModal('modal-paga-extra');renderCuentas();
 }
-function borrarPagaExtra(id){if(!confirm('¿Eliminar?'))return;db.pagas_extra=db.pagas_extra.filter(x=>x.id!==id);save();renderCuentas();}
+function borrarPagaExtra(id){showConfirm({title:'¿Eliminar paga extra?',msg:'Esta acción no se puede deshacer.',onOk:()=>{db.pagas_extra=db.pagas_extra.filter(x=>x.id!==id);save();renderCuentas();}});}
 
 // ═══════════════════════════════════════════════════
 // SIMULADOR FISCAL
 // ═══════════════════════════════════════════════════
 
 // Tramos IRPF base general 2024 (estatal + autonómico CLM aprox.)
-const TRAMOS_GENERAL=[
-  {hasta:12450,tipo:0.19,label:'Hasta €12.450'},
-  {hasta:20200,tipo:0.24,label:'€12.451–€20.200'},
-  {hasta:35200,tipo:0.30,label:'€20.201–€35.200'},
-  {hasta:60000,tipo:0.37,label:'€35.201–€60.000'},
-  {hasta:300000,tipo:0.45,label:'€60.001–€300.000'},
-  {hasta:Infinity,tipo:0.47,label:'Más de €300.000'}
+// Tramos base general 2024 — parte ESTATAL (escala progresiva estatal)
+const TRAMOS_ESTATAL=[
+  {hasta:12450, tipo:0.095, label:'Hasta €12.450'},
+  {hasta:20200, tipo:0.12,  label:'€12.451–€20.200'},
+  {hasta:35200, tipo:0.15,  label:'€20.201–€35.200'},
+  {hasta:60000, tipo:0.185, label:'€35.201–€60.000'},
+  {hasta:300000,tipo:0.225, label:'€60.001–€300.000'},
+  {hasta:Infinity,tipo:0.245,label:'Más de €300.000'}
 ];
-// Tramos base del ahorro 2024
+// Tramos base general 2024 — parte AUTONÓMICA CLM
+const TRAMOS_CLM=[
+  {hasta:12450, tipo:0.095, label:'Hasta €12.450'},
+  {hasta:20200, tipo:0.12,  label:'€12.451–€20.200'},
+  {hasta:35200, tipo:0.15,  label:'€20.201–€35.200'},
+  {hasta:60000, tipo:0.185, label:'€35.201–€60.000'},
+  {hasta:300000,tipo:0.225, label:'€60.001–€300.000'},
+  {hasta:Infinity,tipo:0.245,label:'Más de €300.000'}
+];
+// Tramos base del ahorro 2024 (estatal + autonómica combinados)
 const TRAMOS_AHORRO=[
-  {hasta:6000,tipo:0.19,label:'Hasta €6.000'},
-  {hasta:50000,tipo:0.21,label:'€6.001–€50.000'},
-  {hasta:200000,tipo:0.23,label:'€50.001–€200.000'},
+  {hasta:6000,  tipo:0.19, label:'Hasta €6.000'},
+  {hasta:50000, tipo:0.21, label:'€6.001–€50.000'},
+  {hasta:200000,tipo:0.23, label:'€50.001–€200.000'},
   {hasta:Infinity,tipo:0.28,label:'Más de €200.000'}
 ];
+// Mínimo personal y familiar (LIRPF art. 57)
+const MINIMO_PERSONAL=5550; // contribuyente menor de 65 años
 
 function calcTramos(base,tramos){
   let total=0,restante=Math.max(0,base),prev=0;
@@ -3628,34 +4330,67 @@ function calcTramos(base,tramos){
   }
   return{total,detalle};
 }
+// Cuota generada por el mínimo personal — se resta de la cuota íntegra
+function cuotaMinimoPersonal(minimo){
+  return calcTramos(minimo,TRAMOS_ESTATAL).total + calcTramos(minimo,TRAMOS_CLM).total;
+}
 
-function renderFiscal(){
-  // Rellenar datos automáticos de la app
+function getFiscalData(){
   const now=new Date();
-  const nomina=nominaActual(now.getMonth(),now.getFullYear());
-  const nominaAnual=nomina*14;// 12 pagas + 2 extras estimadas
+  const m=now.getMonth(), y=now.getFullYear();
+  // Nómina anual: suma de nóminas reales del año + extrapola los meses sin datos con nominaActual
+  let nominaAnual=0;
+  for(let mm=0;mm<12;mm++){
+    const exact=db.nominas.find(n=>n.mes===mm+1&&n.año===y);
+    if(exact){
+      // Usar importe_regular si existe (excluir paga extra del cálculo de base imponible laboral)
+      nominaAnual+=parseFloat(exact.importe_regular||exact.importe);
+    } else if(mm<=m){
+      nominaAnual+=nominaActual(mm,y);
+    } else {
+      // Meses futuros: extrapolar con la nómina actual
+      nominaAnual+=nominaActual(m,y);
+    }
+  }
   const intBruto=db.cuentas.reduce((s,c)=>s+parseFloat(c.saldo||0)*(parseFloat(c.tae||0)/100),0);
   const intRet=intBruto*0.19;
   const ganancias=db.vendidos.reduce((s,v)=>s+Math.max(0,parseFloat(v.pnl||0)),0);
   const perdidas=db.activos.reduce((s,a)=>{const v=parseFloat(a.unidades||0)*parseFloat(a.precio_actual||0);const inv=parseFloat(a.invertido||0);return s+(inv>v?inv-v:0);},0);
+  return {nominaAnual,intBruto,intRet,ganancias,perdidas};
+}
 
-  // Pre-rellenar si está vacío
-  if(!document.getElementById('fisc-retencion').value)document.getElementById('fisc-retencion').value='15';
-  if(!document.getElementById('fisc-dias').value)document.getElementById('fisc-dias').value='220';
-
+function renderFiscal(){
+  const {nominaAnual,intBruto,intRet,ganancias,perdidas}=getFiscalData();
+  // Cargar inputs guardados
+  const fc=db.config.fiscal||{};
+  const setVal=(id,val)=>{const e=document.getElementById(id);if(e&&!e._dirty)e.value=val||'';};
+  setVal('fisc-retencion', fc.retencion||15);
+  setVal('fisc-otros-ingresos', fc.otros_ingresos||'');
+  setVal('fisc-cuotas', fc.cuotas||'');
+  setVal('fisc-pension', fc.pension||'');
+  setVal('fisc-donativos', fc.donativos||'');
+  setVal('fisc-dias', fc.dias||220);
   document.getElementById('fisc-bruto').textContent=fmt(nominaAnual);
   document.getElementById('fisc-intereses-bruto').textContent=fmt(intBruto);
   document.getElementById('fisc-intereses-ret').textContent='−'+fmt(intRet);
   document.getElementById('fisc-ganancias').textContent=fmt(ganancias);
   document.getElementById('fisc-perdidas').textContent='−'+fmt(perdidas)+' (compensables)';
-
   calcFiscal();
+}
+function saveFiscalInputs(){
+  if(!db.config.fiscal)db.config.fiscal={};
+  db.config.fiscal.retencion=parseInput(document.getElementById('fisc-retencion').value||'15');
+  db.config.fiscal.otros_ingresos=parseInput(document.getElementById('fisc-otros-ingresos').value||'0');
+  db.config.fiscal.cuotas=parseInput(document.getElementById('fisc-cuotas').value||'0');
+  db.config.fiscal.pension=parseInput(document.getElementById('fisc-pension').value||'0');
+  db.config.fiscal.donativos=parseInput(document.getElementById('fisc-donativos').value||'0');
+  db.config.fiscal.dias=parseInput(document.getElementById('fisc-dias').value||'220');
+  save();
 }
 
 function calcFiscal(){
-  const now=new Date();
-  const nomina=nominaActual(now.getMonth(),now.getFullYear());
-  const nominaAnual=nomina*14;
+  saveFiscalInputs();
+  const {nominaAnual,intBruto,intRet,ganancias,perdidas}=getFiscalData();
   const retencionPct=parseInput(document.getElementById('fisc-retencion').value||'15')/100;
   const otrosIngresos=parseInput(document.getElementById('fisc-otros-ingresos').value||'0');
   const cuotas=parseInput(document.getElementById('fisc-cuotas').value||'0');
@@ -3663,20 +4398,12 @@ function calcFiscal(){
   const pension=parseInput(document.getElementById('fisc-pension').value||'0');
   const diasLab=parseInput(document.getElementById('fisc-dias').value||'220');
 
-  const intBruto=db.cuentas.reduce((s,c)=>s+parseFloat(c.saldo||0)*(parseFloat(c.tae||0)/100),0);
-  const intRet=intBruto*0.19;
-  const ganancias=db.vendidos.reduce((s,v)=>s+Math.max(0,parseFloat(v.pnl||0)),0);
-  const perdidas=db.activos.reduce((s,a)=>{const v=parseFloat(a.unidades||0)*parseFloat(a.precio_actual||0);const inv=parseFloat(a.invertido||0);return s+(inv>v?inv-v:0);},0);
-
-  // ── BASE GENERAL (trabajo) ──
+  // ── BASE IMPONIBLE GENERAL (trabajo) ──
   const ingresosBrutos=nominaAnual+otrosIngresos;
-
-  // Reducción art.20 LIRPF (rendimientos del trabajo)
   let redTrabajo=0;
   if(ingresosBrutos<=14047.5)redTrabajo=6498;
   else if(ingresosBrutos<=19747.5)redTrabajo=Math.max(0,6498-(ingresosBrutos-14047.5)*1.14);
   else redTrabajo=2364;
-
   const baseTrabajo=Math.max(0,ingresosBrutos-redTrabajo-cuotas-pension);
 
   document.getElementById('fisc-red-trabajo').textContent='−'+fmt(redTrabajo);
@@ -3684,88 +4411,122 @@ function calcFiscal(){
   document.getElementById('fisc-base-trabajo').textContent=fmt(baseTrabajo);
   document.getElementById('fisc-retencion-total').textContent=fmt(ingresosBrutos*retencionPct);
 
-  // ── BASE AHORRO ──
-  // Ganancias compensadas con pérdidas (hasta 25% de ganancias pueden compensarse con rdtos negativos)
+  // ── BASE IMPONIBLE DEL AHORRO ──
+  // La retención NO reduce la base — reduce la cuota final como pago a cuenta
   const baseAhorroGanancias=Math.max(0,ganancias-perdidas);
-  const baseAhorro=Math.max(0,baseAhorroGanancias+intBruto-intRet);
+  const baseAhorro=Math.max(0,baseAhorroGanancias+intBruto); // intBruto íntegro, sin descontar retención
   document.getElementById('fisc-base-ahorro').textContent=fmt(baseAhorro);
 
-  // ── CUOTAS ──
-  const cuotaTrabajo=calcTramos(baseTrabajo,TRAMOS_GENERAL);
-  const cuotaAhorro=calcTramos(baseAhorro,TRAMOS_AHORRO);
+  // ── CUOTA ÍNTEGRA ──
+  // Estatal + autonómica CLM por separado, aplicando mínimo personal
+  const cuotaEstatalBruta=calcTramos(baseTrabajo,TRAMOS_ESTATAL).total;
+  const cuotaCLMBruta=calcTramos(baseTrabajo,TRAMOS_CLM).total;
+  const cuotaMinPersonalEstatal=calcTramos(MINIMO_PERSONAL,TRAMOS_ESTATAL).total;
+  const cuotaMinPersonalCLM=calcTramos(MINIMO_PERSONAL,TRAMOS_CLM).total;
+  // Cuota trabajo neta del mínimo personal
+  const cuotaTrabajoEstatal=Math.max(0,cuotaEstatalBruta-cuotaMinPersonalEstatal);
+  const cuotaTrabajoCLM=Math.max(0,cuotaCLMBruta-cuotaMinPersonalCLM);
+  const cuotaTrabajo=cuotaTrabajoEstatal+cuotaTrabajoCLM;
+  const cuotaAhorro=calcTramos(baseAhorro,TRAMOS_AHORRO).total;
 
   // Render tramos trabajo
+  const cuotaEstatalDetalle=calcTramos(baseTrabajo,TRAMOS_ESTATAL);
   const ct=document.getElementById('fisc-tramos-trabajo-card');
-  ct.innerHTML=cuotaTrabajo.detalle.length?cuotaTrabajo.detalle.map(d=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;">
-      <span style="color:var(--text2);">${d.label} <span style="color:var(--text3);">(${(d.tipo*100).toFixed(0)}%)</span></span>
-      <span style="font-family:'Playfair Display',serif;font-size:15px;">${fmt(d.cuota)}</span>
-    </div>`).join('')+`<div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-weight:700;font-size:13px;"><span>Total cuota trabajo</span><span style="color:var(--accent);">${fmt(cuotaTrabajo.total)}</span></div>`
+  ct.innerHTML=cuotaEstatalDetalle.detalle.length?`
+    <div style="font-size:10px;color:var(--text3);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Tramos (estatal + CLM combinados)</div>`+
+    cuotaEstatalDetalle.detalle.map(d=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+      <span style="color:var(--text2);">${d.label} <span style="color:var(--text3);">(${(d.tipo*2*100).toFixed(1)}% total)</span></span>
+      <span style="font-family:'Playfair Display',serif;font-size:14px;">${fmt(d.cuota*2)}</span>
+    </div>`).join('')+`
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);padding:6px 0;border-bottom:1px dashed var(--border);">
+      <span>− Mínimo personal (${fmt(MINIMO_PERSONAL)})</span>
+      <span style="color:var(--green);">−${fmt(cuotaMinPersonalEstatal+cuotaMinPersonalCLM)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-weight:700;font-size:13px;">
+      <span>Cuota trabajo neta</span><span style="color:var(--accent);">${fmt(cuotaTrabajo)}</span>
+    </div>`
     :'<div class="empty" style="padding:12px 0;font-size:12px;">Sin base imponible de trabajo</div>';
 
-  // Render tramos ahorro
   const ca=document.getElementById('fisc-tramos-ahorro-card');
-  ca.innerHTML=cuotaAhorro.detalle.length?cuotaAhorro.detalle.map(d=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;">
+  const cuotaAhorroDetalle=calcTramos(baseAhorro,TRAMOS_AHORRO);
+  ca.innerHTML=cuotaAhorroDetalle.detalle.length?cuotaAhorroDetalle.detalle.map(d=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
       <span style="color:var(--text2);">${d.label} <span style="color:var(--text3);">(${(d.tipo*100).toFixed(0)}%)</span></span>
-      <span style="font-family:'Playfair Display',serif;font-size:15px;">${fmt(d.cuota)}</span>
-    </div>`).join('')+`<div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-weight:700;font-size:13px;"><span>Total cuota ahorro</span><span style="color:var(--accent);">${fmt(cuotaAhorro.total)}</span></div>`
+      <span style="font-family:'Playfair Display',serif;font-size:14px;">${fmt(d.cuota)}</span>
+    </div>`).join('')+`<div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-weight:700;font-size:13px;"><span>Cuota ahorro</span><span style="color:var(--accent);">${fmt(cuotaAhorro)}</span></div>`
     :'<div class="empty" style="padding:12px 0;font-size:12px;">Sin ganancias ni intereses registrados</div>';
 
-  // ── DEDUCCIONES CLM ──
+  // ── DEDUCCIONES ──
   const deducciones=[];
 
-  // CLM: Deducción por residencia en municipio en riesgo de despoblación
-  // Urda (Toledo) < 5.000 hab. → deducción autonómica CLM: 15% de la cuota autonómica íntegra
-  // (Decreto-Ley 4/2023 CLM, art. referente a municipios <5.000 hab.)
-  // La cuota autonómica es aprox. 50% de la cuota total
-  const cuotaAutonomica=cuotaTrabajo.total*0.5;
-  const dedMunicipio=cuotaAutonomica*0.15;
-  deducciones.push({label:'🏘️ Residencia en municipio en riesgo de despoblación (Urda, <5.000 hab.)',importe:dedMunicipio,nota:'15% de la cuota autonómica íntegra. Aplicable por residencia en Urda (Toledo). Acredita con certificado de empadronamiento. (CLM, Decreto-Ley 4/2023)'});
-
-  // Estatal: donantes (art. 68.3): 80% primeros €150, 35% resto (40% si donación recurrente)
+  // Estatal: donativos (art. 68.3 LIRPF) — 80% primeros €150, 35% resto
   if(donativos>0){
     const d1=Math.min(donativos,150)*0.80;
     const d2=Math.max(0,donativos-150)*0.35;
-    deducciones.push({label:'Donativos a entidades sin ánimo de lucro',importe:d1+d2,nota:'80% primeros €150, 35% resto'});
+    const total=d1+d2;
+    deducciones.push({
+      label:'💛 Donativos a entidades sin ánimo de lucro',
+      importe:total,
+      detalle:`€${Math.min(donativos,150).toFixed(0)} × 80% = ${fmt(d1)}${donativos>150?` + €${(donativos-150).toFixed(0)} × 35% = ${fmt(d2)}`:''}`,
+      nota:'Art. 68.3 LIRPF. Aplica a ONG con reconocimiento estatal. Si donas más de 2 años seguidos a la misma entidad, el exceso se deduce al 40%.'
+    });
   }
 
-  // CLM: deducción por familia numerosa/monoparental – no aplicamos sin dato
+  // CLM: Residencia en municipio en riesgo de despoblación (<5.000 hab.)
+  // Urda (Toledo) califica. Deducción: 15% cuota autonómica íntegra. Decreto-Ley 4/2023 CLM.
+  const dedMunicipio=cuotaTrabajoCLM*0.15;
+  deducciones.push({
+    label:'🏘️ Residencia en municipio en riesgo de despoblación (Urda, Toledo)',
+    importe:dedMunicipio,
+    detalle:`15% de la cuota autonómica (${fmt(cuotaTrabajoCLM)}) = ${fmt(dedMunicipio)}`,
+    nota:'Decreto-Ley 4/2023 CLM. Urda < 5.000 hab. Acredita con certificado de empadronamiento vigente. Se aplica sobre la cuota autonómica íntegra.'
+  });
 
-  // CLM: deducción por donativos a fundaciones CLM – ya incluido arriba
+  // CLM: Inversión en vivienda habitual (hipoteca pre-2013) — informativa
+  deducciones.push({
+    label:'🏠 Deducción vivienda habitual — hipoteca anterior a enero 2013',
+    importe:0,
+    detalle:'',
+    nota:'Hasta 15% de las cantidades satisfechas ese año, máximo €9.040. Solo si tienes hipoteca firmada antes de ene-2013 sobre vivienda habitual. Introduce el importe en la declaración.'
+  });
 
-  // Estatal: gastos defensa jurídica laboral (hasta €300)
-  deducciones.push({label:'Gastos laborales deducibles (cuotas sindicales, colegios…)',importe:cuotas*0.19,nota:'Aplicados a la base, no deducción directa — ya reducidos arriba'});
+  // CLM: Alquiler vivienda habitual menores 36 años — informativa
+  deducciones.push({
+    label:'🏡 Alquiler vivienda habitual (CLM, menores 36 años)',
+    importe:0,
+    detalle:'',
+    nota:'15% de las cantidades satisfechas, máx. €459. Solo si tienes menos de 36 años y base imponible ≤ €30.000.'
+  });
 
-  // Desplazamiento: NO deducible en IRPF español (trayecto habitual casa-trabajo)
-  // pero lo mostramos como info
+  // Desplazamiento — solo informativa
   const kmAnuales=148*diasLab;
-  const costeKm=kmAnuales*0.26;// €0,26/km AEAT exento para desplazamientos laborales extracurriculares
-  deducciones.push({label:`Desplazamiento Urda↔Toledo (${kmAnuales.toLocaleString('es-ES')} km/año · ${fmt(costeKm)} coste)`,importe:0,nota:'ℹ️ El trayecto habitual casa-trabajo NO es deducible en España. Si realizas desplazamientos laborales adicionales reembolsados, hasta €0,26/km están exentos.'});
+  const costeKm=kmAnuales*0.26;
+  deducciones.push({
+    label:`🚗 Desplazamiento Urda ↔ Toledo (~${kmAnuales.toLocaleString('es-ES')} km/año)`,
+    importe:0,
+    detalle:`Coste estimado: ${fmt(costeKm)} (${(148*2)} km/día × €0,26/km)`,
+    nota:'El trayecto habitual casa-trabajo NO es deducible en España. Si realizas desplazamientos laborales adicionales reembolsados por empresa, hasta €0,26/km están exentos de IRPF.'
+  });
 
-  // CLM: Inversión en vivienda habitual (si hipoteca anterior a 2013)
-  deducciones.push({label:'Deducción vivienda habitual (CLM, hipoteca pre-2013)',importe:0,nota:'Solo si tienes hipoteca anterior a ene-2013. Hasta 15% de lo pagado (máx. €9.040). Introduce el importe en la declaración.'});
-
-  // CLM: Jóvenes menores de 36 años alquiler vivienda habitual
-  deducciones.push({label:'Alquiler vivienda habitual (CLM, menores 36 años)',importe:0,nota:'15% de las cantidades satisfechas, máx. €459. Solo si eres menor de 36 años y tu base no supera €30.000.'});
-
-  const totalDeduc=deducciones.filter(d=>d.importe>0).reduce((s,d)=>s+d.importe,0)+donativos*0;// ya calculado
+  const totalDeducReal=deducciones.reduce((s,d)=>s+d.importe,0);
 
   const dd=document.getElementById('fisc-lista-deducciones');
   dd.innerHTML=deducciones.map(d=>`
     <div style="padding:10px 0;border-bottom:1px solid var(--border);">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-        <span style="font-size:12px;font-weight:500;color:var(--text);flex:1;">${d.label}</span>
-        <span style="font-size:13px;font-weight:700;color:${d.importe>0?'var(--green)':'var(--text3)'};">${d.importe>0?'−'+fmt(d.importe):'—'}</span>
+        <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;">${d.label}</span>
+        <span style="font-size:13px;font-weight:700;flex-shrink:0;color:${d.importe>0?'var(--green)':'var(--text3)'};">${d.importe>0?'−'+fmt(d.importe):'—'}</span>
       </div>
+      ${d.detalle?`<div style="font-size:10px;color:var(--accent);margin-top:2px;">${d.detalle}</div>`:''}
       ${d.nota?`<div style="font-size:10px;color:var(--text3);margin-top:3px;line-height:1.4;">${d.nota}</div>`:''}
     </div>`).join('');
 
   // ── RESULTADO FINAL ──
-  const cuotaIntegra=cuotaTrabajo.total+cuotaAhorro.total;
-  const totalDeducReal=dedMunicipio+(donativos>0?(Math.min(donativos,150)*0.80+Math.max(0,donativos-150)*0.35):0);
+  const cuotaIntegra=cuotaTrabajo+cuotaAhorro;
   const cuotaLiquida=Math.max(0,cuotaIntegra-totalDeducReal);
-  const totalRetenciones=ingresosBrutos*retencionPct+intRet;
+  // Retenciones: nómina + retención de intereses (pago a cuenta del ahorro)
+  const totalRetenciones=(ingresosBrutos*retencionPct)+intRet;
   const diferencial=cuotaLiquida-totalRetenciones;
 
   document.getElementById('fisc-cuota-integra').textContent=fmt(cuotaIntegra);
@@ -3785,9 +4546,6 @@ function calcFiscal(){
     veredicto.innerHTML=`<span class="badge gray" style="font-size:12px;padding:6px 14px;">≈ Equilibrado</span>`;
   }
 
-  // Hero
-  const heroVal=document.getElementById('fiscal-resultado-val');
-  heroVal.textContent=Math.round(Math.abs(diferencial)).toLocaleString('es-ES');
   document.getElementById('fiscal-sign').textContent=diferencial>0?'−':'+';
   document.getElementById('fiscal-resultado-sub').textContent=diferencial>0?'Cuota diferencial a ingresar en Hacienda':'Devolución estimada de Hacienda';
 }
@@ -3853,7 +4611,7 @@ async function actualizarPrecios(){
       }catch(e){}
     }
     db.precios_ts=new Date().toISOString();
-    save();renderCartera();if(curPage==='dashboard')renderDash();
+    save();refreshCurrentPage();
     btn.textContent='✓';
     setTimeout(()=>{btn.textContent='↻';btn.disabled=false;},2000);
   }catch(e){
@@ -3913,7 +4671,14 @@ function generarInforme(){
 
   const gastosP=db.gastos.filter(g=>{const d=new Date(g.fecha);const gy=d.getFullYear(),gm=d.getMonth()+1;return(gy>dy||(gy===dy&&gm>=dm))&&(gy<hy||(gy===hy&&gm<=hm));});
   const gastosV=gastosP.filter(g=>g.tipo==='gasto').reduce((s,g)=>s+parseFloat(g.importe||0)-parseFloat(g.reembolso||0),0);
-  const ingresos=gastosP.filter(g=>g.tipo!=='gasto').reduce((s,g)=>s+parseFloat(g.importe||0),0);
+  const ingresos=gastosP.filter(g=>g.tipo==='ingreso').reduce((s,g)=>s+parseFloat(g.importe||0),0);
+  const ingresosExt=gastosP.filter(g=>g.tipo==='ingreso_extra');
+  const totalIngresosExt=ingresosExt.reduce((s,g)=>s+parseFloat(g.importe||0),0);
+  const gastosExt=gastosP.filter(g=>g.tipo==='gasto_extra');
+  const totalGastosExt=gastosExt.reduce((s,g)=>s+parseFloat(g.importe||0),0);
+  // Extras de nómina en el período
+  const nominasExtPeriodo=db.nominas.filter(n=>{return n.extra_nomina>0&&(n.año>dy||(n.año===dy&&n.mes>=dm))&&(n.año<hy||(n.año===hy&&n.mes<=hm));});
+  const totalNominaExt=nominasExtPeriodo.reduce((s,n)=>s+parseFloat(n.extra_nomina||0),0);
   const fijosT=totalFijos()*meses_periodo;
   const proT=totalProrrata()*meses_periodo;
   const gastoTotal=gastosV+fijosT+proT-ingresos;
@@ -3940,9 +4705,22 @@ function generarInforme(){
 <div class="summary"><div><div class="sl">Patrimonio total</div><div class="sv">€${(liq+tv).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div><div style="text-align:right;"><div class="sl">Cartera · Líquido</div><div style="font-size:14px;opacity:0.75;">€${tv.toLocaleString('es-ES',{minimumFractionDigits:0})} · €${liq.toLocaleString('es-ES',{minimumFractionDigits:0})}</div></div></div>
 <div class="kpi-grid">
 ${iGastos?`<div class="kpi"><div class="kl">Gasto período</div><div class="kv r">€${gastoTotal.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="ks">incl. fijos y prorrata</div></div>`:''}
-${iAhorro?`<div class="kpi"><div class="kl">Ingresos extra</div><div class="kv g">+€${ingresos.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="ks">devoluciones e ingresos</div></div>`:''}
+${iAhorro?`<div class="kpi"><div class="kl">Ingresos extra</div><div class="kv g">+€${ingresos.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="ks">reducen gasto neto mensual</div></div>`:''}
+${totalIngresosExt>0?`<div class="kpi"><div class="kl">Extraordinarios</div><div class="kv" style="color:#d97706;">+€${totalIngresosExt.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="ks">separados del ahorro mensual</div></div>`:''}
 ${iInv?`<div class="kpi"><div class="kl">G/P cartera</div><div class="kv ${pnlC>=0?'g':'r'}">${pnlC>=0?'+':''}€${Math.abs(pnlC).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="ks">${ti>0?((pnlC/ti)*100).toFixed(2)+'% sobre invertido':''}</div></div>`:''}
 </div></div>
+${totalIngresosExt>0||totalNominaExt>0?`<div class="sec"><div class="sec-title">Ingresos extraordinarios</div>
+<table><thead><tr><th>Concepto</th><th class="r">Fecha</th><th class="r">Importe</th></tr></thead><tbody>
+${nominasExtPeriodo.sort((a,b)=>(b.año*12+b.mes)-(a.año*12+a.mes)).map(n=>`<tr><td>💼 Paga extra nómina · ${MESES[n.mes-1]} ${n.año}</td><td class="r">${n.año}-${String(n.mes).padStart(2,'0')}</td><td class="r" style="color:#d97706;">+€${parseFloat(n.extra_nomina||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`).join('')}
+${ingresosExt.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map(g=>`<tr><td>🎁 ${g.concepto}</td><td class="r">${g.fecha}</td><td class="r" style="color:#d97706;">+€${parseFloat(g.importe||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`).join('')}
+<tr style="border-top:2px solid #0d1117;"><td colspan="2"><strong>TOTAL</strong></td><td class="r" style="color:#d97706;"><strong>+€${(totalIngresosExt+totalNominaExt).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></td></tr>
+</tbody></table><p style="font-size:11px;color:#9ca3af;font-style:italic;">No computan en el ahorro mensual. Son patrimonio adicional independiente.</p></div>`:''}
+${totalGastosExt>0?`<div class="sec"><div class="sec-title">Gastos extraordinarios</div>
+<table><thead><tr><th>Concepto</th><th class="r">Fecha</th><th class="r">Importe</th></tr></thead><tbody>
+${gastosExt.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map(g=>`<tr><td>🧳 ${g.concepto}</td><td class="r">${g.fecha}</td><td class="r" style="color:#dc2626;">-€${parseFloat(g.importe||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`).join('')}
+<tr style="border-top:2px solid #0d1117;"><td colspan="2"><strong>TOTAL</strong></td><td class="r" style="color:#dc2626;"><strong>-€${totalGastosExt.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></td></tr>
+</tbody></table><p style="font-size:11px;color:#9ca3af;font-style:italic;">No computan en el presupuesto mensual pero sí se descuentan del ahorro acumulado del año.</p></div>`:''}
+
 ${iGastos?`<div class="sec"><div class="sec-title">Gastos del período</div>
 <div class="kpi-grid"><div class="kpi"><div class="kl">Variables</div><div class="kv r">€${gastosV.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div><div class="kpi"><div class="kl">Fijos mensuales</div><div class="kv">€${fijosT.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="ks">${meses_periodo} meses</div></div><div class="kpi"><div class="kl">Prorrata anual</div><div class="kv">€${proT.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div></div>
 ${Object.keys(porCat).length?`<table><thead><tr><th>Categoría</th><th class="r">Importe</th><th class="r">% del total</th></tr></thead><tbody>${Object.entries(porCat).sort((a,b)=>b[1]-a[1]).map(([cat,imp])=>`<tr><td>${cat}</td><td class="r red">€${imp.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td class="r">${gastosV>0?((imp/gastosV)*100).toFixed(1)+'%':'—'}</td></tr>`).join('')}</tbody></table>`:''}
