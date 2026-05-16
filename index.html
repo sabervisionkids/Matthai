@@ -848,7 +848,7 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
       <div>
         <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);font-weight:600;margin-bottom:4px;">Total gastado</div>
         <div style="font-family:'Playfair Display',serif;font-size:30px;color:var(--red);line-height:1;" id="g-total">€0</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:3px;">fijos + variables</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;">fijos + variables + inversión</div>
       </div>
       <div style="text-align:right;">
         <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);font-weight:600;margin-bottom:4px;">Por gastar</div>
@@ -856,16 +856,25 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
         <div style="font-size:11px;color:var(--text3);margin-top:3px;" id="g-dif-sub">de €0</div>
       </div>
     </div>
-    <!-- Desglose fijos / variables -->
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <div style="flex:1;background:var(--surface2);border-radius:var(--r-xs);padding:8px 10px;">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Fijos prorrateados</div>
-        <div style="font-size:15px;font-weight:600;color:var(--text);" id="g-total-fijos">€0</div>
+    <!-- Desglose fijos / variables / inversión -->
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:80px;background:var(--surface2);border-radius:var(--r-xs);padding:8px 10px;">
+        <div style="font-size:9px;color:var(--text3);margin-bottom:3px;">Fijos</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);" id="g-total-fijos">€0</div>
       </div>
-      <div style="flex:1;background:var(--surface2);border-radius:var(--r-xs);padding:8px 10px;">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Variables este mes</div>
-        <div style="font-size:15px;font-weight:600;color:var(--text);" id="g-total-vars">€0</div>
+      <div style="flex:1;min-width:80px;background:var(--surface2);border-radius:var(--r-xs);padding:8px 10px;">
+        <div style="font-size:9px;color:var(--text3);margin-bottom:3px;">Variables</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);" id="g-total-vars">€0</div>
       </div>
+      <div style="flex:1;min-width:80px;background:var(--accent-light);border:1px solid var(--accent-border);border-radius:var(--r-xs);padding:8px 10px;">
+        <div style="font-size:9px;color:var(--accent);margin-bottom:3px;">📈 Inversión</div>
+        <div style="font-size:14px;font-weight:600;color:var(--accent);" id="g-total-inv">€0</div>
+      </div>
+    </div>
+    <!-- Saveback (oculto si no hay) -->
+    <div id="g-saveback-row" style="background:var(--green-light);border:1px solid var(--green-border);border-radius:var(--r-xs);padding:6px 10px;margin-bottom:10px;font-size:11px;color:var(--green);display:none;justify-content:space-between;">
+      <span>🎁 Saveback TR (sin coste real)</span>
+      <span id="g-total-saveback">€0</span>
     </div>
     <!-- Barra progreso -->
     <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:6px;">
@@ -906,7 +915,6 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
 
   <div class="tabs">
     <button class="tab active" onclick="switchGTab('variables')">Variables</button>
-    <button class="tab" onclick="switchGTab('inversiones')">📈 Inversiones</button>
     <button class="tab" onclick="switchGTab('fijos')">Periódicos</button>
     <button class="tab" onclick="switchGTab('fiado')">🤝 Fiado</button>
     <button class="tab" onclick="switchGTab('comparativa')">📊 Comparativa</button>
@@ -921,9 +929,6 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
   </div>
   <div id="gtab-fiado" style="display:none;">
     <div id="lista-fiado"></div>
-  </div>
-  <div id="gtab-inversiones" style="display:none;">
-    <div id="lista-inversiones-mes"></div>
   </div>
   <div id="gtab-comparativa" style="display:none;">
     <div id="comparativa-content"></div>
@@ -942,6 +947,16 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
       <button class="btn btn-ghost btn-sm" onclick="actualizarPrecios()" id="btn-update-prices">↻</button>
     </div>
   </div>
+
+  <!-- Vista principal: Cartera / Este mes / Historial -->
+  <div class="tabs" id="tabs-cartera-vista" style="margin-bottom:16px;">
+    <button class="tab active" onclick="switchCarteraVista('cartera')">📊 Cartera</button>
+    <button class="tab" onclick="switchCarteraVista('mes')">📅 Este mes</button>
+    <button class="tab" onclick="switchCarteraVista('historial')">📋 Historial</button>
+  </div>
+
+  <!-- VISTA CARTERA -->
+  <div id="cv-cartera">
   <div class="hero-card dark-hero">
     <div class="hero-label">Valor actual cartera</div>
     <div class="hero-amount"><span class="cur">€</span><span id="inv-total-val">0</span></div>
@@ -975,7 +990,7 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
   <span id="inv-p-acc" style="display:none"></span><span id="inv-s-acc" style="display:none"></span>
   <div class="sec-title">Aportaciones activas</div>
   <div class="card" style="padding:8px 14px;" id="lista-aportaciones"></div>
-  <div class="tabs" style="margin-top:16px;">
+  <div class="tabs" id="tabs-inv-tipo" style="margin-top:16px;">
     <button class="tab active" onclick="switchInvTab('todos')">Todos</button>
     <button class="tab" onclick="switchInvTab('etf')">ETF</button>
     <button class="tab" onclick="switchInvTab('fondo')">Fondos</button>
@@ -986,7 +1001,31 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
   <div class="card" style="padding:8px 14px;" id="lista-activos"></div>
   <div class="sec-title">Vendidos</div>
   <div class="card" style="padding:8px 14px;" id="lista-vendidos"></div>
-  <div class="sec-title">Calculadora IRPF</div>
+  </div><!-- /cv-cartera -->
+
+  <!-- VISTA ESTE MES -->
+  <div id="cv-mes" style="display:none;">
+    <div class="month-nav" id="cv-mes-nav">
+      <button onclick="changeCarteraMes(-1)">‹</button>
+      <span class="month-label" id="cv-mes-label">—</span>
+      <button onclick="changeCarteraMes(1)">›</button>
+    </div>
+    <div id="lista-inversiones-mes"></div>
+  </div>
+
+  <!-- VISTA HISTORIAL -->
+  <div id="cv-historial" style="display:none;">
+    <div class="tabs" style="margin-bottom:14px;">
+      <button class="tab active" onclick="switchHistorialTab('aportaciones')">📈 Aportaciones</button>
+      <button class="tab" onclick="switchHistorialTab('intereses')">🏦 Intereses</button>
+    </div>
+    <div id="cv-hist-aportaciones"><div id="cv-hist-aport-content"></div></div>
+    <div id="cv-hist-intereses" style="display:none;"><div id="cv-hist-int-content"></div></div>
+  </div><!-- /cv-historial -->
+
+  <!-- Calculadora IRPF — siempre visible en Cartera -->
+  <div id="cv-irpf-wrap">
+  <div class="sec-title" style="margin-top:16px;">Calculadora IRPF</div>
   <div class="card">
     <div class="card-title">Simular venta de un activo</div>
     <div class="form-group">
@@ -1022,10 +1061,11 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
         <div style="display:flex;justify-content:space-between;"><span style="font-size:13px;font-weight:600;">IRPF a pagar</span><span style="font-family:'Playfair Display',serif;font-size:20px;color:var(--red);font-weight:400;" id="irpf-total">€0</span></div>
       </div>
     </div>
-  </div>
-</div>
+  </div><!-- /card irpf -->
+  </div><!-- /cv-irpf-wrap -->
+</div><!-- /container -->
 <button class="fab" onclick="openModal('modal-nuevo-activo-fab')">+</button>
-</div>
+</div><!-- /page-cartera -->
 
 <!-- ══════════════════ CUENTAS ══════════════════ -->
 <div id="page-cuentas" class="page">
@@ -1549,7 +1589,16 @@ select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg
       <input class="form-input" type="date" id="inv-punt-fecha">
     </div>
   </div>
+  <!-- Saveback toggle -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:14px;">
+    <div>
+      <div style="font-size:13px;font-weight:500;color:var(--text);">🎁 Saveback (Trade Republic)</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px;">TR lo invierte por ti sin coste real · no computa contra presupuesto</div>
+    </div>
+    <button class="toggle" id="inv-punt-saveback-toggle" onclick="toggleInvPuntSaveback()"></button>
+  </div>
   <input type="hidden" id="inv-punt-edit-id">
+  <input type="hidden" id="inv-punt-saveback" value="0">
   <div class="modal-actions">
     <button class="btn btn-ghost" onclick="document.getElementById('modal-inv-puntual').classList.remove('open')">Cancelar</button>
     <button class="btn btn-primary" onclick="guardarInvPuntual()">Guardar</button>
@@ -1989,6 +2038,7 @@ const IRPF_TRAMOS = [
 ];
 
 let db, curMonth, curYear, curPage, curCat, curInvTab, curTipo, irpfCompensar, curChartYear;
+let curCarteraVista='cartera', curCarteraMes, curCarteraYear, curHistorialTab='aportaciones';
 
 function defaultDb() {
   return {
@@ -2115,7 +2165,8 @@ window.addEventListener('load',()=>{
   db=load();
   const now=new Date();
   curMonth=now.getMonth(); curYear=now.getFullYear(); curChartYear=now.getFullYear();
-  curPage='dashboard'; curCat='all'; curInvTab='todos';
+  curCarteraMes=now.getMonth(); curCarteraYear=now.getFullYear();
+  curPage='dashboard'; curCat='all'; curInvTab='todos'; curCarteraVista='cartera';
   curTipo='gasto'; irpfCompensar=false;
   document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
   if(!db.onboarding_done){showOnboarding();}
@@ -2570,19 +2621,24 @@ function renderDash(){
   document.getElementById('dash-proy-label-left').textContent=fmt(ahorroAcum)+' ahorrado';
   document.getElementById('dash-proy-label-right').textContent='objetivo '+fmt(obj);
 
-  // Gastado: desglose fijos + variables (sin inversión) + inversión separada
+  // Gastado: desglose fijos + variables + inversión (todas cuentan contra el presupuesto)
   const pres=db.config.presupuesto_mensual||0;
   const gastoFijos=totalFijos(m,y)+totalProrrata(m,y);
   const gastoVarsPuro=Math.max(0,gastoN-invMes-gastoFijos); // solo variables puras
-  const dif=pres-(gastoN-invMes); // margen vs presupuesto de gasto puro (sin inversión)
+  // Saveback no cuenta como gasto real (lo invierte TR sin coste para el usuario)
+  const savebackDash=(db.inversiones_puntuales||[]).filter(p=>p.mes===m&&p.año===y&&p.saveback).reduce((s,p)=>s+parseFloat(p.importe||0),0);
+  const invCoste=Math.max(0,invMes-savebackDash);
+  // Total contra presupuesto = fijos + variables + inversiones con coste real
+  const totalContraPres=gastoVarsPuro+gastoFijos+invCoste;
+  const dif=pres-totalContraPres; // margen real
   document.getElementById('dash-gastado-fijos').textContent=fmt(gastoFijos);
   document.getElementById('dash-gastado').textContent=fmt(gastoVarsPuro);
-  document.getElementById('dash-inv-mes').textContent=fmt(invMes);
+  document.getElementById('dash-inv-mes').textContent=fmt(invCoste);
 
   // Días restantes
   const diasMes=new Date(y,m+1,0).getDate();
   const diasRest=diasMes-now.getDate();
-  const presRest=Math.max(0,pres-gastoN);
+  const presRest=Math.max(0,pres-totalContraPres);
   document.getElementById('dash-dias').textContent=diasRest;
   document.getElementById('dash-dia-gasto').textContent=diasRest>0?fmt(presRest/diasRest)+'/día':'Fin de mes';
 
@@ -2997,8 +3053,13 @@ function renderGastos(){
   const gastoVar=vars-ings;
   // Fijos prorrateados del mes
   const gastoFijosMes=totalFijos(m,y)+totalProrrata(m,y);
-  // Total real del mes (mínimo 0 — los ingresos no pueden hacer que el gasto total sea negativo)
-  const gastoTotal=Math.max(0,gastoVar+gastoFijosMes);
+  // Inversiones del mes (cuentan como gasto contra el presupuesto)
+  const invMesG=inversionNetoMes(m,y);
+  // Saveback: inversiones sin coste real (bonificación TR), no computan contra presupuesto
+  const savebackMes=(db.inversiones_puntuales||[]).filter(p=>p.mes===m&&p.año===y&&p.saveback).reduce((s,p)=>s+parseFloat(p.importe||0),0);
+  const invCosteMes=Math.max(0,invMesG-savebackMes);
+  // Total real del mes (fijos + variables + inversiones con coste real)
+  const gastoTotal=Math.max(0,gastoVar+gastoFijosMes+invCosteMes);
   const pres=db.config.presupuesto_mensual||0;
   const dif=pres-gastoTotal;
   const pct=pres>0?Math.min(120,gastoTotal/pres*100):0;
@@ -3008,6 +3069,10 @@ function renderGastos(){
   document.getElementById('g-total').style.color=color;
   document.getElementById('g-total-fijos').textContent=fmt(gastoFijosMes);
   document.getElementById('g-total-vars').textContent=fmt(gastoVar);
+  const gInvEl=document.getElementById('g-total-inv');
+  if(gInvEl){gInvEl.textContent=fmt(invCosteMes);gInvEl.parentElement.style.display=invMesG>0?'':'none';}
+  const sbEl=document.getElementById('g-total-saveback');
+  if(sbEl){sbEl.textContent=fmt(savebackMes);const row=document.getElementById('g-saveback-row');if(row)row.style.display=savebackMes>0?'flex':'none';}
   const difEl=document.getElementById('g-dif');
   difEl.textContent=fmt(Math.abs(dif));
   difEl.style.color=dif>=0?'var(--green)':'var(--red)';
@@ -3056,7 +3121,7 @@ function changeMonth(d){
 
 function switchGTab(t){
   gtab=t;
-  const tabs=['variables','inversiones','fijos','fiado','comparativa'];
+  const tabs=['variables','fijos','fiado','comparativa'];
   document.querySelectorAll('#page-gastos .tab').forEach((b,i)=>b.classList.toggle('active',tabs[i]===t));
   tabs.forEach(x=>document.getElementById('gtab-'+x).style.display=x===t?'':'none');
   renderGTab();
@@ -3065,7 +3130,6 @@ function renderGTab(){
   if(gtab==='variables')renderVariables();
   else if(gtab==='fijos')renderFijosView();
   else if(gtab==='fiado')renderFiadoView();
-  else if(gtab==='inversiones')renderInversionesMes();
   else if(gtab==='comparativa')renderComparativa();
 }
 
@@ -3420,7 +3484,10 @@ function borrarDevolucion(id){
 
 function renderInversionesMes(){
   const el=document.getElementById('lista-inversiones-mes');
-  const m=curMonth,y=curYear;
+  _renderInversionesMesInto(el,curMonth,curYear);
+}
+function _renderInversionesMesInto(el,m,y){
+  if(!el)return;
   const actAport=db.activos.filter(a=>parseFloat(a.aportacion||0)>0);
   const confMes=inversionesMes(m,y);
   const intMes=interesesMes(m,y);
@@ -3591,6 +3658,16 @@ function renderInversionesMes(){
   el.innerHTML=html;
 }
 
+function toggleInvPuntSaveback(){
+  const v=document.getElementById('inv-punt-saveback');
+  const btn=document.getElementById('inv-punt-saveback-toggle');
+  const on=v.value==='1';
+  v.value=on?'0':'1';
+  btn.style.background=on?'':( 'var(--green)');
+  btn.style.background=!on?'var(--green)':'var(--border2)';
+  const togDot=btn.querySelector('::after')||btn;
+  btn.setAttribute('data-on',!on?'1':'0');
+}
 function abrirModalInvPuntual(id){
   const p=id?(db.inversiones_puntuales||[]).find(x=>x.id===id):null;
   const today=new Date().toISOString().split('T')[0];
@@ -3617,6 +3694,10 @@ function abrirModalInvPuntual(id){
   }
   document.getElementById('inv-punt-importe').value=importe;
   document.getElementById('inv-punt-fecha').value=fecha;
+  // Saveback
+  const esSb=p&&p.saveback?'1':'0';
+  document.getElementById('inv-punt-saveback').value=esSb;
+  document.getElementById('inv-punt-saveback-toggle').style.background=esSb==='1'?'var(--green)':'var(--border2)';
   openModal('modal-inv-puntual');
 }
 function editarInvPuntual(id){abrirModalInvPuntual(id);}
@@ -3641,8 +3722,9 @@ function guardarInvPuntual(){
   if(!fecha){showToast('⚠️ Selecciona una fecha');return;}
   const d=new Date(fecha);
   const editId=document.getElementById('inv-punt-edit-id').value;
+  const esSaveback=document.getElementById('inv-punt-saveback').value==='1';
   if(!db.inversiones_puntuales)db.inversiones_puntuales=[];
-  const obj={id:editId||uid(),concepto,importe:imp,fecha,mes:d.getMonth(),año:d.getFullYear()};
+  const obj={id:editId||uid(),concepto,importe:imp,fecha,mes:d.getMonth(),año:d.getFullYear(),saveback:esSaveback};
   if(editId){const i=db.inversiones_puntuales.findIndex(x=>x.id===editId);if(i!==-1)db.inversiones_puntuales[i]=obj;}
   else db.inversiones_puntuales.push(obj);
   save();document.getElementById('modal-inv-puntual').classList.remove('open');
@@ -3800,6 +3882,16 @@ function renderIngresosView(){renderInversionesMes();}// alias legacy
 // CARTERA
 // ═══════════════════════════════════════════════════
 function renderCartera(){
+  // Sincronizar visibilidad de vistas
+  const vistas=['cartera','mes','historial'];
+  document.querySelectorAll('#tabs-cartera-vista .tab').forEach((b,i)=>b.classList.toggle('active',vistas[i]===curCarteraVista));
+  document.getElementById('cv-cartera').style.display=curCarteraVista==='cartera'?'':'none';
+  document.getElementById('cv-mes').style.display=curCarteraVista==='mes'?'':'none';
+  document.getElementById('cv-historial').style.display=curCarteraVista==='historial'?'':'none';
+  document.getElementById('cv-irpf-wrap').style.display=curCarteraVista==='cartera'?'':'none';
+  if(curCarteraVista==='mes'){renderCarteraMesView();return;}
+  if(curCarteraVista==='historial'){renderHistorialView();return;}
+
   const tv=totalCartera();
   const ti=totalInvertido();
   const pnl=tv-ti;
@@ -3951,9 +4043,117 @@ function renderDonutCartera(pw,tv,ti,oi,tol){
   }
 }
 
+// ─── Gestión de vistas en la pestaña Cartera ───
+function switchCarteraVista(v){
+  curCarteraVista=v;
+  const vistas=['cartera','mes','historial'];
+  document.querySelectorAll('#tabs-cartera-vista .tab').forEach((b,i)=>b.classList.toggle('active',vistas[i]===v));
+  document.getElementById('cv-cartera').style.display=v==='cartera'?'':'none';
+  document.getElementById('cv-mes').style.display=v==='mes'?'':'none';
+  document.getElementById('cv-historial').style.display=v==='historial'?'':'none';
+  document.getElementById('cv-irpf-wrap').style.display=v==='cartera'?'':'none';
+  if(v==='mes'){renderCarteraMesView();}
+  else if(v==='historial'){renderHistorialView();}
+}
+
+function changeCarteraMes(d){
+  const now=new Date();
+  let m=curCarteraMes+d,y=curCarteraYear;
+  if(m>11){m=0;y++;}if(m<0){m=11;y--;}
+  if(y<2020)return;
+  if(y>now.getFullYear()||(y===now.getFullYear()&&m>now.getMonth()))return;
+  curCarteraMes=m;curCarteraYear=y;
+  renderCarteraMesView();
+}
+
+function renderCarteraMesView(){
+  const now=new Date();
+  if(curCarteraMes===undefined){curCarteraMes=now.getMonth();curCarteraYear=now.getFullYear();}
+  document.getElementById('cv-mes-label').textContent=MESES[curCarteraMes]+' '+curCarteraYear;
+  // Reutilizar renderInversionesMes pero apuntando a cv-mes
+  const m=curCarteraMes,y=curCarteraYear;
+  _renderInversionesMesInto(document.getElementById('lista-inversiones-mes'),m,y);
+}
+
+function switchHistorialTab(t){
+  curHistorialTab=t;
+  document.querySelectorAll('#cv-historial .tab').forEach((b,i)=>b.classList.toggle('active',['aportaciones','intereses'][i]===t));
+  document.getElementById('cv-hist-aportaciones').style.display=t==='aportaciones'?'':'none';
+  document.getElementById('cv-hist-intereses').style.display=t==='intereses'?'':'none';
+  renderHistorialView();
+}
+
+function renderHistorialView(){
+  if(curHistorialTab==='aportaciones')renderHistorialAportaciones();
+  else renderHistorialIntereses();
+}
+
+function renderHistorialAportaciones(){
+  const el=document.getElementById('cv-hist-aport-content');
+  if(!el)return;
+  // Todas las aportaciones agrupadas por año/mes
+  const actAport=db.activos.filter(a=>parseFloat(a.aportacion||0)>0);
+  const now=new Date();
+  const rows=[];
+  // Recorrer años disponibles
+  const anos=[...new Set([...( db.confirmaciones_inversion||[]).map(c=>c.año),now.getFullYear()])].sort((a,b)=>b-a);
+  anos.forEach(y=>{
+    const maxMes=y===now.getFullYear()?now.getMonth():11;
+    for(let mm=maxMes;mm>=0;mm--){
+      const inv=inversionNetoMes(mm,y);
+      const sb=(db.inversiones_puntuales||[]).filter(p=>p.mes===mm&&p.año===y&&p.saveback).reduce((s,p)=>s+parseFloat(p.importe||0),0);
+      if(inv>0||sb>0){
+        rows.push({mes:mm,año:y,total:inv,saveback:sb});
+      }
+    }
+  });
+  if(!rows.length){el.innerHTML='<div class="empty"><div class="ei">📈</div>Sin aportaciones registradas</div>';return;}
+  el.innerHTML=rows.map(r=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:10px;" onclick="switchCarteraVista('mes');curCarteraMes=${r.mes};curCarteraYear=${r.año};renderCarteraMesView();" style="cursor:pointer;">
+      <span style="font-size:13px;font-weight:500;color:var(--text);min-width:90px;">${MESES[r.mes]} ${r.año}</span>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+        <span style="font-family:'Playfair Display',serif;font-size:15px;color:var(--accent);">${fmt(r.total)}</span>
+        ${r.saveback>0?`<span style="font-size:10px;color:var(--green);">🎁 Saveback ${fmt(r.saveback)}</span>`:''}
+      </div>
+      <span style="color:var(--text3);font-size:13px;">›</span>
+    </div>
+  `).join('');
+}
+
+function renderHistorialIntereses(){
+  const el=document.getElementById('cv-hist-int-content');
+  if(!el)return;
+  const ints=(db.pagos_intereses||[]).slice().sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+  if(!ints.length){el.innerHTML='<div class="empty"><div class="ei">🏦</div>Sin intereses registrados</div>';return;}
+  // Agrupar por mes
+  const porMes={};
+  ints.forEach(p=>{
+    const d=new Date(p.fecha);const key=`${d.getFullYear()}-${d.getMonth()}`;
+    if(!porMes[key])porMes[key]={mes:d.getMonth(),año:d.getFullYear(),total:0,items:[]};
+    porMes[key].total+=parseFloat(p.importe||0);
+    porMes[key].items.push(p);
+  });
+  const grupos=Object.values(porMes).sort((a,b)=>(b.año*12+b.mes)-(a.año*12+a.mes));
+  el.innerHTML=grupos.map(g=>{
+    const rows=g.items.map(p=>{
+      const cta=db.cuentas.find(c=>c.id===p.cuentaId);
+      return `<div style="display:flex;justify-content:space-between;padding:4px 0 4px 12px;font-size:11px;color:var(--text3);">
+        <span>${cta?cta.nombre:p.cuentaId||'Cuenta'} · ${new Date(p.fecha).toLocaleDateString('es-ES')}</span>
+        <span style="color:var(--green);">${fmt(p.importe)}</span>
+      </div>`;
+    }).join('');
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:500;margin-bottom:4px;">
+        <span style="color:var(--text);">${MESES[g.mes]} ${g.año}</span>
+        <span style="color:var(--green);font-family:'Playfair Display',serif;">${fmt(g.total)}</span>
+      </div>${rows}
+    </div>`;
+  }).join('');
+}
+
 function switchInvTab(t){
   curInvTab=t;
-  document.querySelectorAll('#page-cartera .tab').forEach((b,i)=>b.classList.toggle('active',['todos','etf','fondo','metal','cripto','acc'][i]===t));
+  document.querySelectorAll('#tabs-inv-tipo .tab').forEach((b,i)=>b.classList.toggle('active',['todos','etf','fondo','metal','cripto','acc'][i]===t));
   renderListaActivos();
 }
 
