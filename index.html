@@ -4314,44 +4314,21 @@ function editarAportacion(id){
 let _bodyLockCount=0;
 let _bodyScrollY=0;
 function _bodyLock(){
-  if(_bodyLockCount===0){
-    _bodyScrollY=window.scrollY||window.pageYOffset||0;
-    document.body.style.position='fixed';
-    document.body.style.top=-_bodyScrollY+'px';
-    document.body.style.left='0';
-    document.body.style.right='0';
-    document.body.style.width='100%';
-  }
   _bodyLockCount++;
 }
 function _bodyUnlock(){
   _bodyLockCount=Math.max(0,_bodyLockCount-1);
-  if(_bodyLockCount===0){
-    document.body.style.position='';
-    document.body.style.top='';
-    document.body.style.left='';
-    document.body.style.right='';
-    document.body.style.width='';
-    window.scrollTo(0,_bodyScrollY);
-  }
 }
 
 function openModal(id, skipReset){
   const overlay=document.getElementById(id);
   if(!overlay)return;
-  // iOS 18 fix: quitar foco del elemento activo antes de abrir el modal
-  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
   _bodyLock();
   overlay.classList.add('open');
   requestAnimationFrame(()=>{
     const modal=overlay.querySelector('.modal');
     if(modal)modal.scrollTop=0;
   });
-  // iOS 18 fix: foco explícito en el primer input editable tras la animación (300ms)
-  setTimeout(()=>{
-    const firstInput=overlay.querySelector('input:not([type=hidden]):not([readonly]), select, textarea');
-    if(firstInput)firstInput.focus();
-  }, 300);
   if(!skipReset){
     if(id==='modal-nuevo-gasto')initModalGasto();
     if(id==='modal-informe')initModalInforme();
