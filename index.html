@@ -4339,12 +4339,19 @@ function _bodyUnlock(){
 function openModal(id, skipReset){
   const overlay=document.getElementById(id);
   if(!overlay)return;
+  // iOS 18 fix: quitar foco del elemento activo antes de abrir el modal
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
   _bodyLock();
   overlay.classList.add('open');
   requestAnimationFrame(()=>{
     const modal=overlay.querySelector('.modal');
     if(modal)modal.scrollTop=0;
   });
+  // iOS 18 fix: foco explícito en el primer input editable tras la animación (300ms)
+  setTimeout(()=>{
+    const firstInput=overlay.querySelector('input:not([type=hidden]):not([readonly]), select, textarea');
+    if(firstInput)firstInput.focus();
+  }, 300);
   if(!skipReset){
     if(id==='modal-nuevo-gasto')initModalGasto();
     if(id==='modal-informe')initModalInforme();
